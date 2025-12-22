@@ -294,18 +294,6 @@ const AdminPage = () => {
       toast({ title: "Fehler", variant: "destructive" });
     }
   };
-    try {
-      await supabase
-        .from('reports')
-        .update({ status })
-        .eq('id', reportId);
-      setReports(reports.map(r => r.id === reportId ? { ...r, status: status as Report['status'] } : r));
-      toast({ title: "Status aktualisiert" });
-    } catch (error) {
-      console.error('Error updating report:', error);
-      toast({ title: "Fehler", variant: "destructive" });
-    }
-  };
 
   const handleEilmeldung = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -334,8 +322,6 @@ const AdminPage = () => {
   };
 
   const pendingCount = stories.filter(s => s.status === 'pending').length;
-  const publishedCount = stories.filter(s => s.status === 'published').length;
-  const pendingReports = reports.filter(r => r.status === 'pending').length;
   const publishedCount = stories.filter(s => s.status === 'published').length;
   const pendingReports = reports.filter(r => r.status === 'pending').length;
 
