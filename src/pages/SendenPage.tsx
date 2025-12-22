@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Check, AlertCircle, Info, Clock, Instagram, Plus, FileText } from "lucide-react";
+import { Send, Check, AlertCircle, Info, Clock, Instagram, Plus, FileText, Sparkles, Loader2 } from "lucide-react";
 import { fetchCategories, submitStory, createCategory } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthModal } from "@/components/auth/AuthModal";
@@ -22,6 +22,8 @@ const SendenPage = () => {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryIcon, setNewCategoryIcon] = useState("📝");
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [isImprovingText, setIsImprovingText] = useState(false);
+  const [aiClarification, setAiClarification] = useState<string | null>(null);
   const [form, setForm] = useState({
     category: "",
     title: "",
@@ -63,6 +65,46 @@ const SendenPage = () => {
       });
     } finally {
       setIsCreatingCategory(false);
+    }
+  };
+
+  const handleImproveText = async () => {
+    if (!form.story.trim() || form.story.length < 20) {
+      toast({ title: "Hinweis", description: "Schreibe erst mehr Text, bevor du ihn verbessern lässt.", variant: "default" });
+      return;
+    }
+
+    setIsImprovingText(true);
+    setAiClarification(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('improve-text', {
+        body: { text: form.story, type: 'story' }
+      });
+
+      if (error) {
+        console.error('Error improving text:', error);
+        if (error.message?.includes('429') || error.message?.includes('rate')) {
+          toast({ title: "Zu viele Anfragen", description: "Bitte warte kurz und versuche es erneut.", variant: "destructive" });
+        } else {
+          toast({ title: "Fehler", description: "Text konnte nicht verbessert werden.", variant: "destructive" });
+        }
+        return;
+      }
+
+      if (data?.improved_text) {
+        setForm({ ...form, story: data.improved_text });
+        toast({ title: "Text verbessert!", description: "Rechtschreibung und Grammatik wurden korrigiert." });
+        
+        if (data?.clarification_needed) {
+          setAiClarification(data.clarification_needed);
+        }
+      }
+    } catch (error) {
+      console.error('Error improving text:', error);
+      toast({ title: "Fehler", variant: "destructive" });
+    } finally {
+      setIsImprovingText(false);
     }
   };
 
@@ -306,20 +348,52 @@ const SendenPage = () => {
 
             {/* Story */}
             <div>
-              <label className="block text-sm font-medium mb-2 text-foreground">
-                Deine Story <span className="text-destructive">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-foreground">
+                  Deine Story <span className="text-destructive">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleImproveText}
+                  disabled={isImprovingText || form.story.length < 20}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-400 rounded-lg hover:from-purple-500/30 hover:to-pink-500/30 disabled:opacity-50 transition-all"
+                >
+                  {isImprovingText ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  KI verbessern
+                </button>
+              </div>
               <textarea
                 value={form.story}
-                onChange={(e) => setForm({ ...form, story: e.target.value })}
+                onChange={(e) => { setForm({ ...form, story: e.target.value }); setAiClarification(null); }}
                 placeholder="Was ist passiert? Erzähl uns deine Geschichte..."
                 rows={6}
                 maxLength={2000}
                 className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
               />
-              <p className="text-xs text-muted-foreground mt-2">
-                {form.story.length} / 2000 Zeichen
-              </p>
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-muted-foreground">
+                  {form.story.length} / 2000 Zeichen
+                </p>
+                {form.story.length >= 20 && (
+                  <p className="text-xs text-purple-400">
+                    ✨ KI kann Rechtschreibung & Grammatik verbessern
+                  </p>
+                )}
+              </div>
+              
+              {/* AI Clarification */}
+              {aiClarification && (
+                <div className="mt-3 p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+                  <p className="text-sm text-purple-300 flex items-start gap-2">
+                    <Sparkles className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span><strong>Hinweis der KI:</strong> {aiClarification}</span>
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Social Media Checkbox */}
