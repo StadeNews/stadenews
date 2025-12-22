@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Newspaper, Send, Heart, Users, User, Shield } from "lucide-react";
+import { Home, Newspaper, Send, Heart, Users, User, Shield, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -12,14 +12,17 @@ export const MobileBottomNav = () => {
     { href: "/news", icon: Newspaper, label: "News" },
     { href: "/spotted", icon: Heart, label: "Spotted" },
     { href: "/senden", icon: Send, label: "Senden" },
-    user ? { href: "/profil", icon: User, label: "Profil" } : { href: "/gruppen", icon: Users, label: "Gruppen" },
+    { href: "/gruppen", icon: Users, label: "Gruppen" },
+    { href: "/status", icon: Activity, label: "Status" },
+    user ? { href: "/profil", icon: User, label: "Profil" } : null,
     ...(isAdmin ? [{ href: "/admin", icon: Shield, label: "Admin" }] : []),
-  ];
+  ].filter(Boolean);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden glass-card border-t border-border/30 pb-safe">
       <ul className="flex items-center justify-around h-16">
         {navItems.map((item) => {
+          if (!item) return null;
           const isActive = location.pathname === item.href;
           const Icon = item.icon;
           
@@ -28,19 +31,19 @@ export const MobileBottomNav = () => {
               <Link
                 to={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all duration-200",
+                  "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all duration-200",
                   isActive
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <div className={cn(
-                  "p-1.5 rounded-lg transition-all duration-200",
+                  "p-1 rounded-lg transition-all duration-200",
                   isActive && "bg-primary/20 neon-glow-sm"
                 )}>
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[9px] font-medium">{item.label}</span>
               </Link>
             </li>
           );

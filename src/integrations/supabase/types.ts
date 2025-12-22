@@ -580,6 +580,47 @@ export type Database = {
           },
         ]
       }
+      spotted_responses: {
+        Row: {
+          anonymous_author: string | null
+          contact_info: string | null
+          created_at: string
+          id: string
+          is_read: boolean | null
+          message: string
+          spotted_id: string
+          user_id: string | null
+        }
+        Insert: {
+          anonymous_author?: string | null
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          spotted_id: string
+          user_id?: string | null
+        }
+        Update: {
+          anonymous_author?: string | null
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          spotted_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spotted_responses_spotted_id_fkey"
+            columns: ["spotted_id"]
+            isOneToOne: false
+            referencedRelation: "spotted"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stories: {
         Row: {
           anonymous_author: string | null

@@ -402,6 +402,26 @@ export const sendGroupMessage = async (message: {
   if (error) throw error;
 };
 
+// Delete group message (admin)
+export const deleteGroupMessage = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('group_messages')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
+// Delete chat group (admin)
+export const deleteChatGroup = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('chat_groups')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
 // User profile with activity
 export const fetchUserProfile = async (userId: string): Promise<Profile | null> => {
   const { data, error } = await supabase
