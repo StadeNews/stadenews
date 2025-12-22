@@ -1,38 +1,12 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Shield, Zap, Users, ChevronRight, Siren, MessageSquare, AlertTriangle, PartyPopper, Heart, Instagram } from "lucide-react";
-import { NewsCard, NewsItem } from "@/components/shared/NewsCard";
-
-// Mock data
-const latestNews: NewsItem[] = [
-  {
-    id: "1",
-    category: "🚨 Blaulicht",
-    categoryColor: "bg-red-500/20 text-red-400",
-    title: "Großeinsatz in der Innenstadt",
-    excerpt: "Feuerwehr und Polizei waren heute Vormittag mit mehreren Fahrzeugen am Pferdemarkt im Einsatz...",
-    timestamp: "vor 2 Std.",
-    reactions: 45,
-  },
-  {
-    id: "2",
-    category: "🗣 Gossip",
-    categoryColor: "bg-purple-500/20 text-purple-400",
-    title: "Bekanntes Restaurant schließt überraschend",
-    excerpt: "Das beliebte Restaurant am Hafen hat heute seine Türen für immer geschlossen. Insider berichten von...",
-    timestamp: "vor 5 Std.",
-    reactions: 128,
-  },
-  {
-    id: "3",
-    category: "🎉 Events",
-    categoryColor: "bg-green-500/20 text-green-400",
-    title: "Weihnachtsmarkt startet nächste Woche",
-    excerpt: "Endlich ist es soweit! Der traditionelle Stader Weihnachtsmarkt öffnet am Montag seine Pforten...",
-    timestamp: "vor 8 Std.",
-    reactions: 89,
-  },
-];
+import { NewsCard } from "@/components/shared/NewsCard";
+import { NewsCardSkeleton } from "@/components/shared/SkeletonLoaders";
+import { Shield, Zap, Users, ChevronRight, Instagram } from "lucide-react";
+import { fetchPublishedStories, fetchCategories } from "@/lib/api";
+import { Story, Category } from "@/types/database";
+import stadeNewsLogo from "@/assets/stade-news-logo.png";
 
 const features = [
   {
@@ -52,14 +26,38 @@ const features = [
   },
 ];
 
-const categories = [
-  { icon: Siren, name: "Blaulicht", color: "text-red-400" },
-  { icon: MessageSquare, name: "Gossip", color: "text-purple-400" },
-  { icon: AlertTriangle, name: "Aufreger", color: "text-orange-400" },
-  { icon: PartyPopper, name: "Events", color: "text-green-400" },
-];
-
 const HomePage = () => {
+  const [stories, setStories] = useState<Story[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [storiesData, categoriesData] = await Promise.all([
+          fetchPublishedStories(),
+          fetchCategories()
+        ]);
+        setStories(storiesData.slice(0, 5));
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const categoryIcons: Record<string, string> = {
+    blaulicht: '🚨',
+    gossip: '🗣',
+    aufreger: '⚠️',
+    events: '🎉',
+    gestaendnisse: '🤐',
+    lob: '❤️'
+  };
+
   return (
     <MainLayout>
       {/* Hero Section */}
@@ -71,6 +69,11 @@ const HomePage = () => {
 
         <div className="container mx-auto px-4 py-16 md:py-24 relative">
           <div className="text-center max-w-3xl mx-auto">
+            {/* Logo */}
+            <div className="w-24 h-24 mx-auto mb-6 rounded-2xl overflow-hidden border-2 border-primary/30 animate-fade-in">
+              <img src={stadeNewsLogo} alt="Stade News" className="w-full h-full object-cover" />
+            </div>
+            
             <h1 className="font-display text-4xl md:text-6xl font-bold mb-6 animate-fade-in">
               <span className="neon-text text-primary">Stade</span>{" "}
               <span className="text-foreground">News</span>
@@ -117,12 +120,12 @@ const HomePage = () => {
         <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
           {categories.map((cat) => (
             <Link
-              key={cat.name}
-              to={`/news?kategorie=${cat.name.toLowerCase()}`}
+              key={cat.slug}
+              to={`/news?kategorie=${cat.slug}`}
               className="flex items-center gap-2 px-4 py-2 glass-card hover:bg-secondary/50 transition-all whitespace-nowrap"
             >
-              <cat.icon className={`w-4 h-4 ${cat.color}`} />
-              <span className="text-sm font-medium">{cat.name}</span>
+              <span>{categoryIcons[cat.slug] || '📰'}</span>
+              <span className="text-sm font-medium">{cat.name.split(' ')[0]}</span>
             </Link>
           ))}
         </div>
@@ -142,15 +145,27 @@ const HomePage = () => {
         </div>
         
         <div className="space-y-4">
-          {latestNews.map((news, index) => (
-            <div
-              key={news.id}
-              className="animate-fade-up"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <NewsCard news={news} />
+          {isLoading ? (
+            <>
+              <NewsCardSkeleton />
+              <NewsCardSkeleton />
+              <NewsCardSkeleton />
+            </>
+          ) : stories.length > 0 ? (
+            stories.map((story, index) => (
+              <div
+                key={story.id}
+                className="animate-fade-up"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <NewsCard story={story} />
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              Noch keine News vorhanden.
             </div>
-          ))}
+          )}
         </div>
       </section>
 

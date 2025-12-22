@@ -14,16 +14,276 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      categories: {
+        Row: {
+          color: string
+          created_at: string
+          description: string | null
+          display_order: number | null
+          icon: string
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          color: string
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          icon: string
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          icon?: string
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_anonymous: boolean | null
+          is_deleted: boolean | null
+          nickname: string
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean | null
+          is_deleted?: boolean | null
+          nickname: string
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean | null
+          is_deleted?: boolean | null
+          nickname?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      comments: {
+        Row: {
+          anonymous_author: string | null
+          content: string
+          created_at: string
+          id: string
+          story_id: string
+          user_id: string | null
+        }
+        Insert: {
+          anonymous_author?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          story_id: string
+          user_id?: string | null
+        }
+        Update: {
+          anonymous_author?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          story_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      likes: {
+        Row: {
+          anonymous_id: string | null
+          created_at: string
+          id: string
+          story_id: string
+          user_id: string | null
+        }
+        Insert: {
+          anonymous_id?: string | null
+          created_at?: string
+          id?: string
+          story_id: string
+          user_id?: string | null
+        }
+        Update: {
+          anonymous_id?: string | null
+          created_at?: string
+          id?: string
+          story_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "likes_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id: string
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          subscribed_to_breaking: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          subscribed_to_breaking?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          subscribed_to_breaking?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      stories: {
+        Row: {
+          anonymous_author: string | null
+          category_id: string | null
+          content: string
+          created_at: string
+          id: string
+          is_breaking: boolean | null
+          likes_count: number | null
+          published_at: string | null
+          status: string | null
+          title: string | null
+          user_id: string | null
+          views_count: number | null
+        }
+        Insert: {
+          anonymous_author?: string | null
+          category_id?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          is_breaking?: boolean | null
+          likes_count?: number | null
+          published_at?: string | null
+          status?: string | null
+          title?: string | null
+          user_id?: string | null
+          views_count?: number | null
+        }
+        Update: {
+          anonymous_author?: string | null
+          category_id?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          is_breaking?: boolean | null
+          likes_count?: number | null
+          published_at?: string | null
+          status?: string | null
+          title?: string | null
+          user_id?: string | null
+          views_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +410,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const

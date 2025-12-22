@@ -1,35 +1,63 @@
-import { ThumbsUp, Flag, Share2, Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { ThumbsUp, Flag, Share2, Clock, MessageCircle } from "lucide-react";
+import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-
-export interface NewsItem {
-  id: string;
-  category: string;
-  categoryColor: string;
-  title: string;
-  excerpt: string;
-  timestamp: string;
-  reactions: number;
-}
+import { useAuth } from "@/hooks/useAuth";
+import { useAnonymousId } from "@/hooks/useAnonymousId";
+import { toggleLike, checkUserLiked } from "@/lib/api";
+import { Story } from "@/types/database";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { useEffect } from "react";
 
 interface NewsCardProps {
-  news: NewsItem;
+  story: Story;
   className?: string;
+  showCommentLink?: boolean;
 }
 
-export const NewsCard = ({ news, className }: NewsCardProps) => {
-  const [reactions, setReactions] = useState(news.reactions);
-  const [hasReacted, setHasReacted] = useState(false);
+export const NewsCard = ({ story, className, showCommentLink = true }: NewsCardProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const anonymousId = useAnonymousId();
+  const [likesCount, setLikesCount] = useState(story.likes_count);
+  const [hasLiked, setHasLiked] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'like' | null>(null);
 
-  const handleReaction = () => {
-    if (hasReacted) {
-      setReactions(prev => prev - 1);
-      setHasReacted(false);
+  useEffect(() => {
+    const checkLike = async () => {
+      const liked = await checkUserLiked(story.id, user?.id, anonymousId);
+      setHasLiked(liked);
+    };
+    if (anonymousId || user?.id) {
+      checkLike();
+    }
+  }, [story.id, user?.id, anonymousId]);
+
+  const handleLike = async (asAnonymous: boolean = false) => {
+    try {
+      const userId = asAnonymous ? undefined : user?.id;
+      const anonId = asAnonymous ? anonymousId : undefined;
+      
+      const nowLiked = await toggleLike(story.id, userId, anonId);
+      setHasLiked(nowLiked);
+      setLikesCount(prev => nowLiked ? prev + 1 : prev - 1);
+    } catch (error) {
+      toast({
+        title: "Fehler",
+        description: "Like konnte nicht gespeichert werden.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const onLikeClick = () => {
+    if (!user && !hasLiked) {
+      setPendingAction('like');
+      setShowAuthModal(true);
     } else {
-      setReactions(prev => prev + 1);
-      setHasReacted(true);
+      handleLike(false);
     }
   };
 
@@ -41,85 +69,134 @@ export const NewsCard = ({ news, className }: NewsCardProps) => {
   };
 
   const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/story/${story.id}`;
+    
     if (navigator.share) {
       try {
         await navigator.share({
-          title: news.title,
-          text: news.excerpt,
-          url: window.location.href,
+          title: story.title || 'Stade News Story',
+          text: story.content.substring(0, 100) + '...',
+          url: shareUrl,
         });
       } catch {
         // User cancelled
       }
     } else {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(shareUrl);
       toast({
         title: "Link kopiert!",
-        description: "Der Link wurde in die Zwischenablage kopiert.",
+        description: "Der Stade News Link wurde in die Zwischenablage kopiert.",
       });
     }
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffHours < 1) return 'gerade eben';
+    if (diffHours < 24) return `vor ${diffHours} Std.`;
+    if (diffDays < 7) return `vor ${diffDays} Tag${diffDays > 1 ? 'en' : ''}`;
+    return date.toLocaleDateString('de-DE');
+  };
+
+  const category = story.category;
+
   return (
-    <article className={cn(
-      "glass-card p-4 hover-lift group",
-      className
-    )}>
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-3">
-        <span 
-          className={cn(
-            "px-3 py-1 text-xs font-medium rounded-full",
-            news.categoryColor
+    <>
+      <article className={cn(
+        "glass-card p-4 hover-lift group",
+        story.is_breaking && "border-destructive/50 bg-destructive/5",
+        className
+      )}>
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-3">
+          {story.is_breaking && (
+            <span className="px-2 py-0.5 text-xs font-bold bg-destructive text-destructive-foreground rounded animate-pulse">
+              EILMELDUNG
+            </span>
           )}
-        >
-          {news.category}
-        </span>
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Clock className="w-3 h-3" />
-          {news.timestamp}
-        </span>
-      </div>
-
-      {/* Content */}
-      <h3 className="font-display font-semibold text-lg mb-2 group-hover:text-primary transition-colors">
-        {news.title}
-      </h3>
-      <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-        {news.excerpt}
-      </p>
-
-      {/* Actions */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={handleReaction}
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all duration-200",
-            hasReacted 
-              ? "bg-primary/20 text-primary" 
-              : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          {category && (
+            <span className={cn("px-3 py-1 text-xs font-medium rounded-full", category.color)}>
+              {category.name}
+            </span>
           )}
-        >
-          <ThumbsUp className={cn("w-4 h-4", hasReacted && "fill-current")} />
-          <span>{reactions}</span>
-        </button>
-        
-        <button
-          onClick={handleReport}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-secondary/50 text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all duration-200"
-        >
-          <Flag className="w-4 h-4" />
-          <span className="hidden sm:inline">Melden</span>
-        </button>
-        
-        <button
-          onClick={handleShare}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200"
-        >
-          <Share2 className="w-4 h-4" />
-          <span className="hidden sm:inline">Teilen</span>
-        </button>
-      </div>
-    </article>
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock className="w-3 h-3" />
+            {formatDate(story.published_at || story.created_at)}
+          </span>
+        </div>
+
+        {/* Content */}
+        <Link to={`/story/${story.id}`}>
+          <h3 className="font-display font-semibold text-lg mb-2 group-hover:text-primary transition-colors">
+            {story.title || 'Neue Story'}
+          </h3>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4 line-clamp-3">
+            {story.content}
+          </p>
+        </Link>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={onLikeClick}
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all duration-200",
+              hasLiked 
+                ? "bg-primary/20 text-primary" 
+                : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            )}
+          >
+            <ThumbsUp className={cn("w-4 h-4", hasLiked && "fill-current")} />
+            <span>{likesCount}</span>
+          </button>
+
+          {showCommentLink && (
+            <Link
+              to={`/story/${story.id}#comments`}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Kommentare</span>
+            </Link>
+          )}
+          
+          <button
+            onClick={handleReport}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-secondary/50 text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all duration-200"
+          >
+            <Flag className="w-4 h-4" />
+            <span className="hidden sm:inline">Melden</span>
+          </button>
+          
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200"
+          >
+            <Share2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Teilen</span>
+          </button>
+        </div>
+      </article>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => {
+          setShowAuthModal(false);
+          setPendingAction(null);
+        }}
+        onContinueAnonymous={() => {
+          if (pendingAction === 'like') {
+            handleLike(true);
+          }
+          setPendingAction(null);
+        }}
+        title="Liken"
+      />
+    </>
   );
 };
