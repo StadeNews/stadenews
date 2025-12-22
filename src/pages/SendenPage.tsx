@@ -370,13 +370,12 @@ const SendenPage = () => {
                 value={form.story}
                 onChange={(e) => { setForm({ ...form, story: e.target.value }); setAiClarification(null); }}
                 placeholder="Was ist passiert? Erzähl uns deine Geschichte..."
-                rows={6}
-                maxLength={2000}
-                className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
+                rows={8}
+                className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-y min-h-[150px]"
               />
               <div className="flex items-center justify-between mt-2">
                 <p className="text-xs text-muted-foreground">
-                  {form.story.length} / 2000 Zeichen
+                  {form.story.length} Zeichen
                 </p>
                 {form.story.length >= 20 && (
                   <p className="text-xs text-purple-400">
