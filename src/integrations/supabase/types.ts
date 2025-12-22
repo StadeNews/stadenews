@@ -47,6 +47,33 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_groups: {
+        Row: {
+          created_at: string
+          creator_id: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
@@ -108,6 +135,47 @@ export type Database = {
             columns: ["story_id"]
             isOneToOne: false
             referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_messages: {
+        Row: {
+          content: string
+          created_at: string
+          group_id: string
+          id: string
+          is_anonymous: boolean | null
+          is_deleted: boolean | null
+          nickname: string
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          group_id: string
+          id?: string
+          is_anonymous?: boolean | null
+          is_deleted?: boolean | null
+          nickname: string
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          is_anonymous?: boolean | null
+          is_deleted?: boolean | null
+          nickname?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "chat_groups"
             referencedColumns: ["id"]
           },
         ]

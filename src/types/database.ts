@@ -66,3 +66,24 @@ export interface UserRole {
   user_id: string;
   role: 'admin' | 'moderator' | 'user';
 }
+
+export interface ChatGroup {
+  id: string;
+  name: string;
+  description: string | null;
+  creator_id: string | null;
+  created_at: string;
+  is_active: boolean;
+  creator?: Profile | null;
+}
+
+export interface GroupMessage {
+  id: string;
+  group_id: string;
+  content: string;
+  nickname: string;
+  user_id: string | null;
+  is_anonymous: boolean;
+  is_deleted: boolean;
+  created_at: string;
+}

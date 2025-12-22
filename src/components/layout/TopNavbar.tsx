@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LogIn, LogOut, Shield } from "lucide-react";
+import { LogIn, LogOut, Shield, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthModal } from "@/components/auth/AuthModal";
@@ -73,13 +73,21 @@ export const TopNavbar = () => {
             )}
             
             {user ? (
-              <button
-                onClick={handleSignOut}
-                className="hidden md:flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Abmelden
-              </button>
+              <div className="hidden md:flex items-center gap-2">
+                <Link
+                  to="/profil"
+                  className="flex items-center gap-2 px-3 py-2 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 transition-colors"
+                >
+                  <User className="w-4 h-4" />
+                  Profil
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2 px-3 py-2 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
             ) : (
               <button
                 onClick={() => setShowAuthModal(true)}
