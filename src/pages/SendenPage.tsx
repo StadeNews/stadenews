@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Check, AlertCircle, Info } from "lucide-react";
+import { Send, Check, AlertCircle, Info, Clock, Instagram } from "lucide-react";
 import { fetchCategories, submitStory } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { generateNickname } from "@/hooks/useAnonymousId";
+import { supabase } from "@/integrations/supabase/client";
 import type { Category } from "@/types/database";
 
 const SendenPage = () => {
@@ -19,6 +20,8 @@ const SendenPage = () => {
     category: "",
     title: "",
     story: "",
+    socialMediaSuitable: false,
+    creditsName: "",
   });
 
   useEffect(() => {
@@ -48,6 +51,8 @@ const SendenPage = () => {
 
   const submitStoryToDatabase = async (asAnonymous = false) => {
     setIsSubmitting(true);
+    const authorName = asAnonymous ? generateNickname() : (user ? user.email?.split('@')[0] || 'Unbekannt' : generateNickname());
+    const categoryName = categories.find(c => c.id === form.category)?.name || 'Unbekannt';
     
     try {
       await submitStory({
@@ -55,8 +60,27 @@ const SendenPage = () => {
         title: form.title || undefined,
         content: form.story,
         user_id: asAnonymous ? undefined : user?.id,
-        anonymous_author: asAnonymous ? generateNickname() : (user ? undefined : generateNickname()),
+        anonymous_author: asAnonymous ? authorName : (user ? undefined : authorName),
+        social_media_suitable: form.socialMediaSuitable,
+        credits_name: form.creditsName.trim() || undefined,
       });
+      
+      // Send email notification to admin
+      try {
+        await supabase.functions.invoke('send-story-notification', {
+          body: {
+            title: form.title,
+            content: form.story,
+            category: categoryName,
+            authorName: authorName,
+            socialMediaSuitable: form.socialMediaSuitable,
+            creditsName: form.creditsName.trim() || undefined,
+          }
+        });
+      } catch (emailError) {
+        console.error('Email notification failed:', emailError);
+        // Don't fail the submission if email fails
+      }
       
       setIsSuccess(true);
       toast({
@@ -84,7 +108,7 @@ const SendenPage = () => {
   };
 
   const handleReset = () => {
-    setForm({ category: "", title: "", story: "" });
+    setForm({ category: "", title: "", story: "", socialMediaSuitable: false, creditsName: "" });
     setIsSuccess(false);
   };
 
@@ -93,18 +117,49 @@ const SendenPage = () => {
       <MainLayout>
         <div className="container mx-auto px-4 py-12">
           <div className="max-w-lg mx-auto text-center">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-success/20 flex items-center justify-center animate-scale-in">
-              <Check className="w-10 h-10 text-success" />
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-500/20 flex items-center justify-center animate-scale-in">
+              <Check className="w-10 h-10 text-green-600" />
             </div>
             
-            <h1 className="font-display text-3xl font-bold mb-4">Story eingereicht!</h1>
-            <p className="text-muted-foreground mb-8">
-              Danke für deinen Beitrag! Wir prüfen deine Story und veröffentlichen sie so schnell wie möglich.
-            </p>
+            <h1 className="font-display text-3xl font-bold mb-4 text-foreground">Story eingereicht!</h1>
+            
+            <div className="bg-card border border-border rounded-xl p-6 mb-6 text-left">
+              <div className="flex items-start gap-3 mb-4">
+                <Clock className="w-5 h-5 text-primary mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-foreground">Was passiert jetzt?</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Deine Story wird von unseren Moderatoren geprüft. Das dauert in der Regel 1-24 Stunden.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3 mb-4">
+                <Check className="w-5 h-5 text-green-600 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-foreground">Nach der Freigabe</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Deine Story erscheint auf der News-Seite und kann von der Community gelesen werden.
+                  </p>
+                </div>
+              </div>
+              
+              {form.socialMediaSuitable && (
+                <div className="flex items-start gap-3">
+                  <Instagram className="w-5 h-5 text-pink-500 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-foreground">Social Media</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Deine Story könnte auf TikTok, Instagram oder Facebook geteilt werden.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
             
             <button
               onClick={handleReset}
-              className="px-6 py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:neon-glow-sm transition-all"
+              className="px-6 py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-all"
             >
               Weitere Story senden
             </button>
@@ -120,7 +175,7 @@ const SendenPage = () => {
         <div className="max-w-lg mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="font-display text-3xl font-bold mb-2">Story einsenden</h1>
+            <h1 className="font-display text-3xl font-bold mb-2 text-foreground">Story einsenden</h1>
             <p className="text-muted-foreground">Teile deine Geschichte – 100% anonym</p>
           </div>
 
@@ -128,7 +183,7 @@ const SendenPage = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Category */}
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-foreground">
                 Kategorie <span className="text-destructive">*</span>
               </label>
               <select
@@ -147,7 +202,7 @@ const SendenPage = () => {
 
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-foreground">
                 Titel <span className="text-muted-foreground">(optional)</span>
               </label>
               <input
@@ -161,7 +216,7 @@ const SendenPage = () => {
 
             {/* Story */}
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-foreground">
                 Deine Story <span className="text-destructive">*</span>
               </label>
               <textarea
@@ -177,8 +232,43 @@ const SendenPage = () => {
               </p>
             </div>
 
+            {/* Social Media Checkbox */}
+            <div className="bg-card border border-border rounded-xl p-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.socialMediaSuitable}
+                  onChange={(e) => setForm({ ...form, socialMediaSuitable: e.target.checked })}
+                  className="mt-1 w-5 h-5 rounded border-border text-primary focus:ring-primary/50"
+                />
+                <div>
+                  <span className="font-medium text-foreground">Für Social Media geeignet</span>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Diese Story darf auf TikTok, Instagram oder Facebook geteilt werden
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* Credits Name */}
+            <div>
+              <label className="block text-sm font-medium mb-2 text-foreground">
+                Credits / Erwähnung <span className="text-muted-foreground">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={form.creditsName}
+                onChange={(e) => setForm({ ...form, creditsName: e.target.value })}
+                placeholder="Name oder Social-Media-Handle für die Erwähnung..."
+                className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Falls du nicht anonym bleiben willst, gib hier deinen Namen/Handle ein
+              </p>
+            </div>
+
             {/* Info Box */}
-            <div className="glass-card p-4 flex gap-3">
+            <div className="bg-card border border-border rounded-xl p-4 flex gap-3">
               <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
               <p className="text-sm text-muted-foreground">
                 Deine Story wird anonym geprüft und ggf. für KI-Videos auf TikTok & Instagram verwendet.
@@ -189,7 +279,7 @@ const SendenPage = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary text-primary-foreground rounded-xl font-semibold hover:neon-glow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
