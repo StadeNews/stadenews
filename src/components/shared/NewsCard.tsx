@@ -108,19 +108,19 @@ export const NewsCard = ({ story, className, showCommentLink = true }: NewsCardP
   return (
     <>
       <article className={cn(
-        "glass-card p-4 hover-lift group",
+        "news-card p-5 hover-lift group",
         story.is_breaking && "border-destructive/50 bg-destructive/5",
         className
       )}>
         {/* Header */}
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
           {story.is_breaking && (
-            <span className="px-2 py-0.5 text-xs font-bold bg-destructive text-destructive-foreground rounded animate-pulse">
+            <span className="breaking-badge">
               EILMELDUNG
             </span>
           )}
           {category && (
-            <span className={cn("px-3 py-1 text-xs font-medium rounded-full", category.color)}>
+            <span className="category-tag">
               {category.name}
             </span>
           )}
@@ -132,7 +132,7 @@ export const NewsCard = ({ story, className, showCommentLink = true }: NewsCardP
 
         {/* Content */}
         <Link to={`/story/${story.id}`}>
-          <h3 className="font-display font-semibold text-lg mb-2 group-hover:text-primary transition-colors">
+          <h3 className="font-display font-bold text-lg mb-2 group-hover:text-primary transition-colors text-headline">
             {story.title || 'Neue Story'}
           </h3>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4 line-clamp-3">
@@ -145,10 +145,10 @@ export const NewsCard = ({ story, className, showCommentLink = true }: NewsCardP
           <button
             onClick={onLikeClick}
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all duration-200",
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 min-h-[40px]",
               hasLiked 
-                ? "bg-primary/20 text-primary" 
-                : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                ? "bg-primary/10 text-primary" 
+                : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
             )}
           >
             <ThumbsUp className={cn("w-4 h-4", hasLiked && "fill-current")} />
@@ -158,7 +158,7 @@ export const NewsCard = ({ story, className, showCommentLink = true }: NewsCardP
           {showCommentLink && (
             <Link
               to={`/story/${story.id}#comments`}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-all duration-200 min-h-[40px]"
             >
               <MessageCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Kommentare</span>
@@ -167,7 +167,7 @@ export const NewsCard = ({ story, className, showCommentLink = true }: NewsCardP
           
           <button
             onClick={handleReport}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-secondary/50 text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all duration-200"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-secondary text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200 min-h-[40px]"
           >
             <Flag className="w-4 h-4" />
             <span className="hidden sm:inline">Melden</span>
@@ -175,7 +175,7 @@ export const NewsCard = ({ story, className, showCommentLink = true }: NewsCardP
           
           <button
             onClick={handleShare}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-all duration-200 min-h-[40px]"
           >
             <Share2 className="w-4 h-4" />
             <span className="hidden sm:inline">Teilen</span>
