@@ -139,7 +139,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     const { data, error } = await resend.emails.send({
       from: "Stade News <onboarding@resend.dev>",
-      to: ["Stade.News@web.de"],
+      to: ["stade.news@web.de"],
       subject: `📰 Neue Story: ${title || 'Ohne Titel'} - ${category}`,
       html: emailHtml,
     });
