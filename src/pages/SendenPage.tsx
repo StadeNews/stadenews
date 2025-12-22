@@ -8,6 +8,7 @@ import { AuthModal } from "@/components/auth/AuthModal";
 import { generateNickname } from "@/hooks/useAnonymousId";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { EmojiPicker } from "@/components/shared/EmojiPicker";
 import type { Category } from "@/types/database";
 
 const SendenPage = () => {
@@ -19,6 +20,7 @@ const SendenPage = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryIcon, setNewCategoryIcon] = useState("📝");
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [form, setForm] = useState({
     category: "",
@@ -39,13 +41,14 @@ const SendenPage = () => {
     try {
       const newCat = await createCategory({
         name: newCategoryName.trim(),
-        icon: "📝",
+        icon: newCategoryIcon,
         color: "#6366f1",
         slug: newCategoryName.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
       });
       setCategories([...categories, newCat]);
       setForm({ ...form, category: newCat.id });
       setNewCategoryName("");
+      setNewCategoryIcon("📝");
       setShowNewCategory(false);
       toast({
         title: "Kategorie erstellt",
@@ -262,19 +265,23 @@ const SendenPage = () => {
                   <label className="block text-sm font-medium mb-2 text-foreground">
                     Neue Kategorie erstellen
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-start">
+                    <EmojiPicker
+                      selectedEmoji={newCategoryIcon}
+                      onSelect={setNewCategoryIcon}
+                    />
                     <input
                       type="text"
                       value={newCategoryName}
                       onChange={(e) => setNewCategoryName(e.target.value)}
                       placeholder="Name der Kategorie..."
-                      className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      className="flex-1 px-4 py-3 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                     />
                     <button
                       type="button"
                       onClick={handleCreateCategory}
                       disabled={isCreatingCategory || !newCategoryName.trim()}
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                      className="px-4 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
                     >
                       {isCreatingCategory ? "..." : "Erstellen"}
                     </button>
