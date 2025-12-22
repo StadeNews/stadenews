@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ScrollToTop } from "@/components/shared/ScrollToTop";
+import { CookieConsent } from "@/components/shared/CookieConsent";
 import HomePage from "./pages/HomePage";
 import NewsPage from "./pages/NewsPage";
 import StoryPage from "./pages/StoryPage";
@@ -16,6 +18,7 @@ import ProfilePage from "./pages/ProfilePage";
 import PublicProfilePage from "./pages/PublicProfilePage";
 import StatusCenterPage from "./pages/StatusCenterPage";
 import UeberUnsPage from "./pages/UeberUnsPage";
+import UpdatesPage from "./pages/UpdatesPage";
 import AdminPage from "./pages/AdminPage";
 import AuthPage from "./pages/AuthPage";
 import ImpressumPage from "./pages/ImpressumPage";
@@ -33,6 +36,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/news" element={<NewsPage />} />
@@ -46,6 +50,7 @@ const App = () => (
             <Route path="/profile/:username" element={<PublicProfilePage />} />
             <Route path="/status" element={<StatusCenterPage />} />
             <Route path="/ueber-uns" element={<UeberUnsPage />} />
+            <Route path="/updates" element={<UpdatesPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/impressum" element={<ImpressumPage />} />
@@ -54,6 +59,7 @@ const App = () => (
             <Route path="/cookies" element={<CookiesPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <CookieConsent />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
