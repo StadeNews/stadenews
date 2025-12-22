@@ -91,7 +91,7 @@ export const Footer = () => {
             <ul className="space-y-3 text-sm">
               <li><Link to="/chat" className="text-muted-foreground hover:text-primary transition-colors">Chat</Link></li>
               <li><Link to="/gruppen" className="text-muted-foreground hover:text-primary transition-colors">Gruppen</Link></li>
-              <li><Link to="/status-center" className="text-muted-foreground hover:text-primary transition-colors">Status-Center</Link></li>
+              <li><Link to="/status" className="text-muted-foreground hover:text-primary transition-colors">Status-Center</Link></li>
               <li><Link to="/ueber-uns" className="text-muted-foreground hover:text-primary transition-colors">Über uns</Link></li>
             </ul>
           </div>
