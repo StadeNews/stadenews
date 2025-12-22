@@ -12,6 +12,23 @@ export const fetchCategories = async (): Promise<Category[]> => {
   return data as Category[];
 };
 
+export const createCategory = async (category: {
+  name: string;
+  icon: string;
+  color: string;
+  slug: string;
+  description?: string;
+}): Promise<Category> => {
+  const { data, error } = await supabase
+    .from('categories')
+    .insert(category)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data as Category;
+};
+
 // Stories
 export const fetchPublishedStories = async (categorySlug?: string): Promise<Story[]> => {
   let query = supabase

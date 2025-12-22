@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Check, AlertCircle, Info, Clock, Instagram } from "lucide-react";
-import { fetchCategories, submitStory } from "@/lib/api";
+import { Send, Check, AlertCircle, Info, Clock, Instagram, Plus, FileText } from "lucide-react";
+import { fetchCategories, submitStory, createCategory } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { generateNickname } from "@/hooks/useAnonymousId";
 import { supabase } from "@/integrations/supabase/client";
+import { Link } from "react-router-dom";
 import type { Category } from "@/types/database";
 
 const SendenPage = () => {
@@ -16,6 +17,9 @@ const SendenPage = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [form, setForm] = useState({
     category: "",
     title: "",
@@ -27,6 +31,37 @@ const SendenPage = () => {
   useEffect(() => {
     fetchCategories().then(setCategories).catch(console.error);
   }, []);
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    
+    setIsCreatingCategory(true);
+    try {
+      const newCat = await createCategory({
+        name: newCategoryName.trim(),
+        icon: "📝",
+        color: "#6366f1",
+        slug: newCategoryName.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+      });
+      setCategories([...categories, newCat]);
+      setForm({ ...form, category: newCat.id });
+      setNewCategoryName("");
+      setShowNewCategory(false);
+      toast({
+        title: "Kategorie erstellt",
+        description: `"${newCat.name}" wurde hinzugefügt.`,
+      });
+    } catch (error) {
+      console.error('Error creating category:', error);
+      toast({
+        title: "Fehler",
+        description: "Kategorie konnte nicht erstellt werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,8 +210,21 @@ const SendenPage = () => {
         <div className="max-w-lg mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="font-display text-3xl font-bold mb-2 text-foreground">Story einsenden</h1>
-            <p className="text-muted-foreground">Teile deine Geschichte – 100% anonym</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="font-display text-3xl font-bold mb-2 text-foreground">Story einsenden</h1>
+                <p className="text-muted-foreground">Teile deine Geschichte – 100% anonym</p>
+              </div>
+              {user && (
+                <Link
+                  to="/meine-einsendungen"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground hover:bg-secondary/80 transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  Meine Einsendungen
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* Form */}
@@ -186,18 +234,53 @@ const SendenPage = () => {
               <label className="block text-sm font-medium mb-2 text-foreground">
                 Kategorie <span className="text-destructive">*</span>
               </label>
-              <select
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              >
-                <option value="">Kategorie wählen...</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.icon} {cat.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  className="flex-1 px-4 py-3 bg-secondary border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                >
+                  <option value="">Kategorie wählen...</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.icon} {cat.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowNewCategory(!showNewCategory)}
+                  className="px-3 py-3 bg-secondary border border-border rounded-xl text-foreground hover:bg-secondary/80 transition-colors"
+                  title="Neue Kategorie erstellen"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+              
+              {showNewCategory && (
+                <div className="mt-3 p-4 bg-card border border-border rounded-xl">
+                  <label className="block text-sm font-medium mb-2 text-foreground">
+                    Neue Kategorie erstellen
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Name der Kategorie..."
+                      className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateCategory}
+                      disabled={isCreatingCategory || !newCategoryName.trim()}
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {isCreatingCategory ? "..." : "Erstellen"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Title */}
