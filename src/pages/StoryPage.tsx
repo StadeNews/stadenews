@@ -3,12 +3,13 @@ import { useParams, Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { NewsCard } from "@/components/shared/NewsCard";
 import { NewsCardSkeleton } from "@/components/shared/SkeletonLoaders";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, Flag } from "lucide-react";
 import { fetchStoryById, fetchComments, addComment } from "@/lib/api";
 import { Story, Comment } from "@/types/database";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { ReportModal } from "@/components/shared/ReportModal";
 import { generateNickname } from "@/hooks/useAnonymousId";
 
 const StoryPage = () => {
@@ -21,6 +22,7 @@ const StoryPage = () => {
   const [newComment, setNewComment] = useState("");
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reportingCommentId, setReportingCommentId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -131,13 +133,22 @@ const StoryPage = () => {
           <div className="space-y-4">
             {comments.map((comment) => (
               <div key={comment.id} className="glass-card p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-medium text-primary">
-                    {comment.anonymous_author || (comment.profile as any)?.username || 'Anonym'}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(comment.created_at).toLocaleDateString('de-DE')}
-                  </span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-primary">
+                      {comment.anonymous_author || (comment.profile as any)?.username || 'Anonym'}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(comment.created_at).toLocaleDateString('de-DE')}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setReportingCommentId(comment.id)}
+                    className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Melden"
+                  >
+                    <Flag className="w-4 h-4" />
+                  </button>
                 </div>
                 <p className="text-sm">{comment.content}</p>
               </div>
@@ -154,6 +165,13 @@ const StoryPage = () => {
         onClose={() => setShowAuthModal(false)}
         onContinueAnonymous={() => handleSubmitComment(true)}
         title="Kommentieren"
+      />
+
+      <ReportModal
+        isOpen={!!reportingCommentId}
+        onClose={() => setReportingCommentId(null)}
+        contentType="comment"
+        contentId={reportingCommentId || ''}
       />
     </MainLayout>
   );

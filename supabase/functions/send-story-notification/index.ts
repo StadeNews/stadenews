@@ -135,6 +135,8 @@ const handler = async (req: Request): Promise<Response> => {
 </html>
     `;
 
+    console.log("Attempting to send email with Resend...");
+    
     const { data, error } = await resend.emails.send({
       from: "Stade News <onboarding@resend.dev>",
       to: ["Stade.News@web.de"],
@@ -143,8 +145,8 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (error) {
-      console.error("Error sending email:", error);
-      throw error;
+      console.error("Resend API error:", JSON.stringify(error));
+      throw new Error(`Resend error: ${JSON.stringify(error)}`);
     }
 
     console.log("Email sent successfully:", data);
