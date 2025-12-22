@@ -13,9 +13,15 @@ import ChatPage from "./pages/ChatPage";
 import ChatGroupsPage from "./pages/ChatGroupsPage";
 import GroupChatPage from "./pages/GroupChatPage";
 import ProfilePage from "./pages/ProfilePage";
+import PublicProfilePage from "./pages/PublicProfilePage";
+import StatusCenterPage from "./pages/StatusCenterPage";
 import UeberUnsPage from "./pages/UeberUnsPage";
 import AdminPage from "./pages/AdminPage";
 import AuthPage from "./pages/AuthPage";
+import ImpressumPage from "./pages/ImpressumPage";
+import DatenschutzPage from "./pages/DatenschutzPage";
+import AGBPage from "./pages/AGBPage";
+import CookiesPage from "./pages/CookiesPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,9 +43,15 @@ const App = () => (
             <Route path="/gruppen" element={<ChatGroupsPage />} />
             <Route path="/gruppen/:id" element={<GroupChatPage />} />
             <Route path="/profil" element={<ProfilePage />} />
+            <Route path="/profile/:username" element={<PublicProfilePage />} />
+            <Route path="/status" element={<StatusCenterPage />} />
             <Route path="/ueber-uns" element={<UeberUnsPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/impressum" element={<ImpressumPage />} />
+            <Route path="/datenschutz" element={<DatenschutzPage />} />
+            <Route path="/agb" element={<AGBPage />} />
+            <Route path="/cookies" element={<CookiesPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

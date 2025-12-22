@@ -14,6 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_messages: {
+        Row: {
+          admin_message: string
+          anonymous_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean | null
+          story_id: string | null
+          user_id: string | null
+          user_reply: string | null
+        }
+        Insert: {
+          admin_message: string
+          anonymous_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          story_id?: string | null
+          user_id?: string | null
+          user_reply?: string | null
+        }
+        Update: {
+          admin_message?: string
+          anonymous_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          story_id?: string | null
+          user_id?: string | null
+          user_reply?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_messages_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anonymous_ids: {
+        Row: {
+          anonymous_id: string
+          created_at: string
+          id: string
+          last_seen_at: string
+          nickname: string
+        }
+        Insert: {
+          anonymous_id: string
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          nickname: string
+        }
+        Update: {
+          anonymous_id?: string
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          nickname?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string
@@ -212,25 +277,90 @@ export type Database = {
           },
         ]
       }
+      login_attempts: {
+        Row: {
+          attempted_at: string
+          email_or_id: string
+          id: string
+          ip_address: string | null
+          successful: boolean | null
+        }
+        Insert: {
+          attempted_at?: string
+          email_or_id: string
+          id?: string
+          ip_address?: string | null
+          successful?: boolean | null
+        }
+        Update: {
+          attempted_at?: string
+          email_or_id?: string
+          id?: string
+          ip_address?: string | null
+          successful?: boolean | null
+        }
+        Relationships: []
+      }
+      profile_likes: {
+        Row: {
+          created_at: string
+          id: string
+          liker_anonymous_id: string | null
+          liker_user_id: string | null
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          liker_anonymous_id?: string | null
+          liker_user_id?: string | null
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          liker_anonymous_id?: string | null
+          liker_user_id?: string | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_likes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string
           id: string
+          is_online: boolean | null
+          likes_count: number | null
           updated_at: string
           username: string | null
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           id: string
+          is_online?: boolean | null
+          likes_count?: number | null
           updated_at?: string
           username?: string | null
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           id?: string
+          is_online?: boolean | null
+          likes_count?: number | null
           updated_at?: string
           username?: string | null
         }
@@ -266,16 +396,54 @@ export type Database = {
         }
         Relationships: []
       }
+      reports: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string
+          details: string | null
+          id: string
+          reason: string
+          reporter_anonymous_id: string | null
+          reporter_user_id: string | null
+          status: string | null
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason: string
+          reporter_anonymous_id?: string | null
+          reporter_user_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason?: string
+          reporter_anonymous_id?: string | null
+          reporter_user_id?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       stories: {
         Row: {
           anonymous_author: string | null
           category_id: string | null
           content: string
           created_at: string
+          credits_name: string | null
           id: string
           is_breaking: boolean | null
           likes_count: number | null
           published_at: string | null
+          social_media_suitable: boolean | null
           status: string | null
           title: string | null
           user_id: string | null
@@ -286,10 +454,12 @@ export type Database = {
           category_id?: string | null
           content: string
           created_at?: string
+          credits_name?: string | null
           id?: string
           is_breaking?: boolean | null
           likes_count?: number | null
           published_at?: string | null
+          social_media_suitable?: boolean | null
           status?: string | null
           title?: string | null
           user_id?: string | null
@@ -300,10 +470,12 @@ export type Database = {
           category_id?: string | null
           content?: string
           created_at?: string
+          credits_name?: string | null
           id?: string
           is_breaking?: boolean | null
           likes_count?: number | null
           published_at?: string | null
+          social_media_suitable?: boolean | null
           status?: string | null
           title?: string | null
           user_id?: string | null
@@ -318,6 +490,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_presence: {
+        Row: {
+          anonymous_id: string | null
+          id: string
+          is_online: boolean | null
+          last_seen: string
+          user_id: string | null
+        }
+        Insert: {
+          anonymous_id?: string | null
+          id?: string
+          is_online?: boolean | null
+          last_seen?: string
+          user_id?: string | null
+        }
+        Update: {
+          anonymous_id?: string | null
+          id?: string
+          is_online?: boolean | null
+          last_seen?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
