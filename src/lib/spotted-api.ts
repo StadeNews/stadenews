@@ -1,12 +1,32 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Spotted, SpottedComment } from '@/types/spotted';
 
-// Fetch all spotted posts
-export const fetchSpottedPosts = async (): Promise<Spotted[]> => {
-  const { data: posts, error } = await supabase
+// Fetch all spotted posts with optional filters
+export const fetchSpottedPosts = async (filters?: {
+  location?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  searchText?: string;
+}): Promise<Spotted[]> => {
+  let query = supabase
     .from('spotted')
     .select('*')
     .order('created_at', { ascending: false });
+
+  if (filters?.location) {
+    query = query.ilike('location', `%${filters.location}%`);
+  }
+  if (filters?.dateFrom) {
+    query = query.gte('spotted_date', filters.dateFrom);
+  }
+  if (filters?.dateTo) {
+    query = query.lte('spotted_date', filters.dateTo);
+  }
+  if (filters?.searchText) {
+    query = query.or(`title.ilike.%${filters.searchText}%,content.ilike.%${filters.searchText}%`);
+  }
+
+  const { data: posts, error } = await query;
 
   if (error) throw error;
 
@@ -74,6 +94,16 @@ export const createSpottedPost = async (post: {
   if (error) throw error;
 };
 
+// Delete spotted post (admin only)
+export const deleteSpottedPost = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('spotted')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+};
+
 // Fetch comments for spotted post
 export const fetchSpottedComments = async (spottedId: string): Promise<SpottedComment[]> => {
   const { data: comments, error } = await supabase
@@ -115,6 +145,16 @@ export const addSpottedComment = async (comment: {
   const { error } = await supabase
     .from('spotted_comments')
     .insert(comment);
+
+  if (error) throw error;
+};
+
+// Delete comment (admin only)
+export const deleteSpottedComment = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('spotted_comments')
+    .delete()
+    .eq('id', id);
 
   if (error) throw error;
 };
@@ -176,4 +216,19 @@ export const toggleSpottedLike = async (
     if (error) throw error;
     return true;
   }
+};
+
+// Submit private response to spotted post
+export const submitSpottedResponse = async (response: {
+  spotted_id: string;
+  message: string;
+  contact_info?: string;
+  user_id?: string;
+  anonymous_author?: string;
+}): Promise<void> => {
+  const { error } = await supabase
+    .from('spotted_responses')
+    .insert(response);
+
+  if (error) throw error;
 };
