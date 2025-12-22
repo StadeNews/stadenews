@@ -1,120 +1,168 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { 
-  Eye, 
   Check, 
   X, 
   Clock, 
   FileText, 
   MessageSquare, 
-  Users, 
   AlertTriangle,
   Send,
-  Trash2,
-  Ban
+  Loader2
 } from "lucide-react";
-
-// Types
-interface Story {
-  id: string;
-  category: string;
-  title: string;
-  content: string;
-  status: "pending" | "published" | "rejected";
-  submittedAt: string;
-}
-
-interface ChatUser {
-  id: string;
-  nickname: string;
-  messageCount: number;
-  isBanned: boolean;
-}
-
-// Mock data
-const mockStories: Story[] = [
-  {
-    id: "1",
-    category: "🚨 Blaulicht",
-    title: "Unfall auf der B73",
-    content: "Heute morgen gab es einen schweren Auffahrunfall auf der B73 Höhe Abfahrt Stade-Nord...",
-    status: "pending",
-    submittedAt: "vor 30 Min.",
-  },
-  {
-    id: "2",
-    category: "🗣 Gossip",
-    title: "Neues Café eröffnet",
-    content: "In der Hökerstraße macht ein neues Café auf. Die Inhaber sind aus Hamburg...",
-    status: "pending",
-    submittedAt: "vor 1 Std.",
-  },
-  {
-    id: "3",
-    category: "⚠️ Aufreger",
-    title: "Parkplatzsituation",
-    content: "Die Parkplatzsituation in der Innenstadt wird immer schlimmer...",
-    status: "published",
-    submittedAt: "vor 3 Std.",
-  },
-];
-
-const mockChatUsers: ChatUser[] = [
-  { id: "1", nickname: "MutigerInsider42", messageCount: 15, isBanned: false },
-  { id: "2", nickname: "StilleBeobachter7", messageCount: 8, isBanned: false },
-  { id: "3", nickname: "TrollMaster99", messageCount: 23, isBanned: true },
-];
+import { 
+  fetchAllStories, 
+  updateStoryStatus, 
+  createBreakingNews,
+  fetchCategories
+} from "@/lib/api";
+import type { Story, Category } from "@/types/database";
 
 const AdminPage = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const [stories, setStories] = useState<Story[]>(mockStories);
-  const [chatUsers, setChatUsers] = useState<ChatUser[]>(mockChatUsers);
-  const [activeTab, setActiveTab] = useState<"stories" | "chat" | "eilmeldung">("stories");
-  
-  // Eilmeldung form
-  const [eilmeldung, setEilmeldung] = useState({ title: "", content: "" });
+  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  const [stories, setStories] = useState<Story[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"stories" | "eilmeldung">("stories");
+  const [eilmeldung, setEilmeldung] = useState({ title: "", content: "", category_id: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handlePublish = (id: string) => {
-    setStories(stories.map(s => 
-      s.id === id ? { ...s, status: "published" as const } : s
-    ));
-    toast({ title: "Story veröffentlicht!" });
+  useEffect(() => {
+    if (!authLoading && (!user || !isAdmin)) {
+      navigate('/');
+      return;
+    }
+
+    if (user && isAdmin) {
+      loadData();
+    }
+  }, [user, isAdmin, authLoading, navigate]);
+
+  const loadData = async () => {
+    try {
+      const [storiesData, categoriesData] = await Promise.all([
+        fetchAllStories(),
+        fetchCategories()
+      ]);
+      setStories(storiesData);
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast({
+        title: "Fehler",
+        description: "Daten konnten nicht geladen werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleReject = (id: string) => {
-    setStories(stories.map(s => 
-      s.id === id ? { ...s, status: "rejected" as const } : s
-    ));
-    toast({ title: "Story abgelehnt" });
+  const handlePublish = async (id: string) => {
+    try {
+      await updateStoryStatus(id, 'published');
+      setStories(stories.map(s => 
+        s.id === id ? { ...s, status: 'published', published_at: new Date().toISOString() } : s
+      ));
+      toast({ title: "Story veröffentlicht!" });
+    } catch (error) {
+      console.error('Error publishing story:', error);
+      toast({
+        title: "Fehler",
+        description: "Story konnte nicht veröffentlicht werden.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleBanUser = (id: string) => {
-    setChatUsers(chatUsers.map(u => 
-      u.id === id ? { ...u, isBanned: !u.isBanned } : u
-    ));
-    toast({ title: "Nutzer-Status geändert" });
+  const handleReject = async (id: string) => {
+    try {
+      await updateStoryStatus(id, 'rejected');
+      setStories(stories.map(s => 
+        s.id === id ? { ...s, status: 'rejected' } : s
+      ));
+      toast({ title: "Story abgelehnt" });
+    } catch (error) {
+      console.error('Error rejecting story:', error);
+      toast({
+        title: "Fehler",
+        description: "Story konnte nicht abgelehnt werden.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleEilmeldung = (e: React.FormEvent) => {
+  const handleEilmeldung = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!eilmeldung.title || !eilmeldung.content) return;
+    if (!eilmeldung.title || !eilmeldung.content || !eilmeldung.category_id) {
+      toast({
+        title: "Fehler",
+        description: "Bitte fülle alle Felder aus.",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    const newStory: Story = {
-      id: Date.now().toString(),
-      category: "⚡ Eilmeldung",
-      title: eilmeldung.title,
-      content: eilmeldung.content,
-      status: "published",
-      submittedAt: "gerade eben",
-    };
-    
-    setStories([newStory, ...stories]);
-    setEilmeldung({ title: "", content: "" });
-    toast({ title: "Eilmeldung veröffentlicht!" });
+    setIsSubmitting(true);
+    try {
+      await createBreakingNews({
+        title: eilmeldung.title,
+        content: eilmeldung.content,
+        category_id: eilmeldung.category_id,
+      });
+      
+      // Reload stories to show the new breaking news
+      const updatedStories = await fetchAllStories();
+      setStories(updatedStories);
+      
+      setEilmeldung({ title: "", content: "", category_id: "" });
+      toast({ title: "Eilmeldung veröffentlicht!" });
+    } catch (error) {
+      console.error('Error creating breaking news:', error);
+      toast({
+        title: "Fehler",
+        description: "Eilmeldung konnte nicht erstellt werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const pendingCount = stories.filter(s => s.status === "pending").length;
+  const pendingCount = stories.filter(s => s.status === 'pending').length;
+  const publishedCount = stories.filter(s => s.status === 'published').length;
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 60) return `vor ${minutes} Min.`;
+    if (hours < 24) return `vor ${hours} Std.`;
+    return `vor ${days} Tagen`;
+  };
+
+  if (authLoading || isLoading) {
+    return (
+      <MainLayout>
+        <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!isAdmin) {
+    return null;
+  }
 
   return (
     <MainLayout>
@@ -123,7 +171,7 @@ const AdminPage = () => {
           {/* Header */}
           <div className="mb-8">
             <h1 className="font-display text-3xl font-bold mb-2">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Verwalte Storys und moderiere den Chat</p>
+            <p className="text-muted-foreground">Verwalte Storys und erstelle Eilmeldungen</p>
           </div>
 
           {/* Stats */}
@@ -139,9 +187,9 @@ const AdminPage = () => {
               <p className="text-xs text-muted-foreground">Offen</p>
             </div>
             <div className="glass-card p-4 text-center">
-              <Users className="w-6 h-6 mx-auto mb-2 text-success" />
-              <p className="text-2xl font-bold">{chatUsers.length}</p>
-              <p className="text-xs text-muted-foreground">Chat-User</p>
+              <Check className="w-6 h-6 mx-auto mb-2 text-success" />
+              <p className="text-2xl font-bold">{publishedCount}</p>
+              <p className="text-xs text-muted-foreground">Veröffentlicht</p>
             </div>
           </div>
 
@@ -149,7 +197,6 @@ const AdminPage = () => {
           <div className="flex gap-2 mb-6 overflow-x-auto">
             {[
               { id: "stories", label: "Storys", icon: FileText },
-              { id: "chat", label: "Chat-Moderation", icon: MessageSquare },
               { id: "eilmeldung", label: "Eilmeldung", icon: AlertTriangle },
             ].map((tab) => (
               <button
@@ -163,6 +210,11 @@ const AdminPage = () => {
               >
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
+                {tab.id === "stories" && pendingCount > 0 && (
+                  <span className="ml-1 px-2 py-0.5 text-xs bg-warning/20 text-warning rounded-full">
+                    {pendingCount}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -170,93 +222,90 @@ const AdminPage = () => {
           {/* Stories Tab */}
           {activeTab === "stories" && (
             <div className="space-y-4">
-              {stories.map((story) => (
-                <div key={story.id} className="glass-card p-4">
-                  <div className="flex items-start justify-between gap-4 mb-3">
-                    <div>
-                      <span className="text-xs px-2 py-1 rounded-full bg-secondary inline-block mb-2">
-                        {story.category}
-                      </span>
-                      <h3 className="font-semibold">{story.title}</h3>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      story.status === "pending" 
-                        ? "bg-warning/20 text-warning"
-                        : story.status === "published"
-                        ? "bg-success/20 text-success"
-                        : "bg-destructive/20 text-destructive"
-                    }`}>
-                      {story.status === "pending" ? "Offen" : story.status === "published" ? "Veröffentlicht" : "Abgelehnt"}
-                    </span>
-                  </div>
-                  
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                    {story.content}
-                  </p>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{story.submittedAt}</span>
-                    
-                    {story.status === "pending" && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handlePublish(story.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-success/20 text-success rounded-lg text-sm hover:bg-success/30 transition-colors"
-                        >
-                          <Check className="w-4 h-4" />
-                          Veröffentlichen
-                        </button>
-                        <button
-                          onClick={() => handleReject(story.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-destructive/20 text-destructive rounded-lg text-sm hover:bg-destructive/30 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                          Ablehnen
-                        </button>
+              {stories.length === 0 ? (
+                <div className="glass-card p-8 text-center text-muted-foreground">
+                  Keine Storys vorhanden.
+                </div>
+              ) : (
+                stories.map((story) => (
+                  <div key={story.id} className="glass-card p-4">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div>
+                        <span className="text-xs px-2 py-1 rounded-full bg-secondary inline-block mb-2">
+                          {story.category?.icon} {story.category?.name || 'Unkategorisiert'}
+                        </span>
+                        {story.is_breaking && (
+                          <span className="text-xs px-2 py-1 ml-2 rounded-full bg-destructive/20 text-destructive inline-block mb-2">
+                            ⚡ Eilmeldung
+                          </span>
+                        )}
+                        <h3 className="font-semibold">{story.title || 'Ohne Titel'}</h3>
                       </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Chat Tab */}
-          {activeTab === "chat" && (
-            <div className="space-y-4">
-              {chatUsers.map((user) => (
-                <div key={user.id} className="glass-card p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                      {user.nickname.charAt(0)}
+                      <span className={`text-xs px-2 py-1 rounded-full flex-shrink-0 ${
+                        story.status === "pending" 
+                          ? "bg-warning/20 text-warning"
+                          : story.status === "published"
+                          ? "bg-success/20 text-success"
+                          : "bg-destructive/20 text-destructive"
+                      }`}>
+                        {story.status === "pending" ? "Offen" : story.status === "published" ? "Veröffentlicht" : "Abgelehnt"}
+                      </span>
                     </div>
-                    <div>
-                      <p className="font-medium">{user.nickname}</p>
-                      <p className="text-xs text-muted-foreground">{user.messageCount} Nachrichten</p>
+                    
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                      {story.content}
+                    </p>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        {formatTime(story.created_at)}
+                        {story.anonymous_author && ` • von ${story.anonymous_author}`}
+                      </span>
+                      
+                      {story.status === "pending" && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handlePublish(story.id)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-success/20 text-success rounded-lg text-sm hover:bg-success/30 transition-colors"
+                          >
+                            <Check className="w-4 h-4" />
+                            Veröffentlichen
+                          </button>
+                          <button
+                            onClick={() => handleReject(story.id)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-destructive/20 text-destructive rounded-lg text-sm hover:bg-destructive/30 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                            Ablehnen
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleBanUser(user.id)}
-                      className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                        user.isBanned
-                          ? "bg-success/20 text-success hover:bg-success/30"
-                          : "bg-destructive/20 text-destructive hover:bg-destructive/30"
-                      }`}
-                    >
-                      <Ban className="w-4 h-4" />
-                      {user.isBanned ? "Entsperren" : "Sperren"}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           )}
 
           {/* Eilmeldung Tab */}
           {activeTab === "eilmeldung" && (
             <form onSubmit={handleEilmeldung} className="glass-card p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Kategorie</label>
+                <select
+                  value={eilmeldung.category_id}
+                  onChange={(e) => setEilmeldung({ ...eilmeldung, category_id: e.target.value })}
+                  className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="">Kategorie wählen...</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.icon} {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-2">Titel</label>
                 <input
@@ -281,9 +330,14 @@ const AdminPage = () => {
               
               <button
                 type="submit"
-                className="flex items-center gap-2 px-6 py-3 bg-destructive text-destructive-foreground rounded-xl font-medium hover:opacity-90 transition-all"
+                disabled={isSubmitting}
+                className="flex items-center gap-2 px-6 py-3 bg-destructive text-destructive-foreground rounded-xl font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Send className="w-5 h-5" />
+                {isSubmitting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Send className="w-5 h-5" />
+                )}
                 Eilmeldung veröffentlichen
               </button>
             </form>

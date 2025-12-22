@@ -19,7 +19,7 @@ interface NewsCardProps {
 export const NewsCard = ({ story, className, showCommentLink = true }: NewsCardProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const anonymousId = useAnonymousId();
+  const { anonymousId } = useAnonymousId();
   const [likesCount, setLikesCount] = useState(story.likes_count);
   const [hasLiked, setHasLiked] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);

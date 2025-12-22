@@ -14,7 +14,7 @@ export const useAnonymousId = () => {
     setAnonymousId(id);
   }, []);
 
-  return anonymousId;
+  return { anonymousId };
 };
 
 // Random nickname generator for anonymous users

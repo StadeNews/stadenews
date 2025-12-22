@@ -1,26 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useToast } from "@/hooks/use-toast";
 import { Send, Check, AlertCircle, Info } from "lucide-react";
-
-const categories = [
-  { id: "blaulicht", name: "🚨 Blaulicht & Verkehr" },
-  { id: "gossip", name: "🗣 Stadt-Gossip" },
-  { id: "aufreger", name: "⚠️ Aufreger der Woche" },
-  { id: "events", name: "🎉 Events & Freizeit" },
-  { id: "gestaendnisse", name: "🤐 Anonyme Geständnisse" },
-  { id: "lob", name: "❤️ Lob & Feedback" },
-];
+import { fetchCategories, submitStory } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { generateNickname } from "@/hooks/useAnonymousId";
+import type { Category } from "@/types/database";
 
 const SendenPage = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState({
     category: "",
     title: "",
     story: "",
   });
+
+  useEffect(() => {
+    fetchCategories().then(setCategories).catch(console.error);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,18 +37,50 @@ const SendenPage = () => {
       return;
     }
 
+    // Show auth modal if not logged in - user can choose to login or continue anonymously
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    await submitStoryToDatabase();
+  };
+
+  const submitStoryToDatabase = async (asAnonymous = false) => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setIsSubmitting(false);
-    setIsSuccess(true);
-    
-    toast({
-      title: "Story eingereicht! ✓",
-      description: "Deine Story wird geprüft und bald veröffentlicht.",
-    });
+    try {
+      await submitStory({
+        category_id: form.category,
+        title: form.title || undefined,
+        content: form.story,
+        user_id: asAnonymous ? undefined : user?.id,
+        anonymous_author: asAnonymous ? generateNickname() : (user ? undefined : generateNickname()),
+      });
+      
+      setIsSuccess(true);
+      toast({
+        title: "Story eingereicht! ✓",
+        description: "Deine Story wird geprüft und bald veröffentlicht.",
+      });
+    } catch (error) {
+      console.error('Error submitting story:', error);
+      toast({
+        title: "Fehler",
+        description: "Story konnte nicht gesendet werden. Bitte versuche es erneut.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAuthModalClose = (action?: 'login' | 'anonymous') => {
+    setShowAuthModal(false);
+    if (action === 'anonymous') {
+      submitStoryToDatabase(true);
+    }
+    // If 'login', user will login and can then submit again
   };
 
   const handleReset = () => {
@@ -104,7 +139,7 @@ const SendenPage = () => {
                 <option value="">Kategorie wählen...</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
-                    {cat.name}
+                    {cat.icon} {cat.name}
                   </option>
                 ))}
               </select>
@@ -134,6 +169,7 @@ const SendenPage = () => {
                 onChange={(e) => setForm({ ...form, story: e.target.value })}
                 placeholder="Was ist passiert? Erzähl uns deine Geschichte..."
                 rows={6}
+                maxLength={2000}
                 className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
               />
               <p className="text-xs text-muted-foreground mt-2">
@@ -178,6 +214,13 @@ const SendenPage = () => {
           </div>
         </div>
       </div>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => handleAuthModalClose()}
+        onContinueAnonymous={() => handleAuthModalClose('anonymous')}
+        showAnonymousOption={true}
+      />
     </MainLayout>
   );
 };
