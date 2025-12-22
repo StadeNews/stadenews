@@ -335,6 +335,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          audio_url: string | null
           avatar_url: string | null
           bio: string | null
           created_at: string
@@ -345,6 +346,7 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          audio_url?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
@@ -355,6 +357,7 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          audio_url?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string

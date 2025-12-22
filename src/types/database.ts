@@ -22,6 +22,8 @@ export interface Story {
   anonymous_author: string | null;
   created_at: string;
   published_at: string | null;
+  social_media_suitable?: boolean;
+  credits_name?: string | null;
   category?: Category;
 }
 
@@ -57,6 +59,9 @@ export interface Profile {
   id: string;
   username: string | null;
   avatar_url: string | null;
+  bio: string | null;
+  is_online: boolean | null;
+  likes_count: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -86,4 +91,35 @@ export interface GroupMessage {
   is_anonymous: boolean;
   is_deleted: boolean;
   created_at: string;
+}
+
+export interface AdminMessage {
+  id: string;
+  user_id: string | null;
+  anonymous_id: string | null;
+  story_id: string | null;
+  admin_message: string;
+  user_reply: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface Report {
+  id: string;
+  reporter_user_id: string | null;
+  reporter_anonymous_id: string | null;
+  content_type: 'story' | 'comment' | 'chat_message' | 'group_message' | 'profile';
+  content_id: string;
+  reason: string;
+  details: string | null;
+  status: 'pending' | 'reviewed' | 'resolved' | 'dismissed';
+  created_at: string;
+}
+
+export interface UserPresence {
+  id: string;
+  user_id: string | null;
+  anonymous_id: string | null;
+  last_seen: string;
+  is_online: boolean;
 }
