@@ -277,17 +277,35 @@ export const deleteStory = async (id: string): Promise<void> => {
 
 // Chat Groups
 export const fetchChatGroups = async (): Promise<ChatGroup[]> => {
-  const { data, error } = await supabase
+  const { data: groups, error } = await supabase
     .from('chat_groups')
-    .select(`
-      *,
-      creator:profiles(username, avatar_url)
-    `)
+    .select('*')
     .eq('is_active', true)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data as unknown as ChatGroup[];
+
+  const creatorIds = Array.from(
+    new Set((groups ?? []).map((g) => g.creator_id).filter(Boolean))
+  ) as string[];
+
+  if (creatorIds.length === 0) {
+    return (groups ?? []) as ChatGroup[];
+  }
+
+  const { data: creators, error: creatorsError } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', creatorIds);
+
+  if (creatorsError) throw creatorsError;
+
+  const creatorById = new Map((creators ?? []).map((c) => [c.id, c] as const));
+
+  return (groups ?? []).map((g) => ({
+    ...(g as any),
+    creator: g.creator_id ? (creatorById.get(g.creator_id) ?? null) : null,
+  })) as unknown as ChatGroup[];
 };
 
 export const createChatGroup = async (group: {
@@ -298,11 +316,22 @@ export const createChatGroup = async (group: {
   const { data, error } = await supabase
     .from('chat_groups')
     .insert(group)
-    .select()
+    .select('*')
     .single();
-  
+
   if (error) throw error;
-  return data as ChatGroup;
+
+  // Enrich with creator profile (optional)
+  const { data: creator } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', group.creator_id)
+    .maybeSingle();
+
+  return {
+    ...(data as ChatGroup),
+    creator: creator ?? null,
+  };
 };
 
 export const fetchGroupMessages = async (groupId: string): Promise<GroupMessage[]> => {
