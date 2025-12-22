@@ -3,23 +3,32 @@ import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Check, 
   X, 
   Clock, 
   FileText, 
-  MessageSquare, 
   AlertTriangle,
   Send,
-  Loader2
+  Loader2,
+  Download,
+  Edit2,
+  Trash2,
+  Users,
+  MessageSquare,
+  Flag,
+  Eye
 } from "lucide-react";
 import { 
   fetchAllStories, 
   updateStoryStatus, 
   createBreakingNews,
-  fetchCategories
+  fetchCategories,
+  updateStory,
+  deleteStory
 } from "@/lib/api";
-import type { Story, Category } from "@/types/database";
+import type { Story, Category, Report, UserPresence } from "@/types/database";
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -27,10 +36,14 @@ const AdminPage = () => {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const [stories, setStories] = useState<Story[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"stories" | "eilmeldung">("stories");
+  const [activeTab, setActiveTab] = useState<"stories" | "eilmeldung" | "reports" | "users">("stories");
   const [eilmeldung, setEilmeldung] = useState({ title: "", content: "", category_id: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingStory, setEditingStory] = useState<Story | null>(null);
+  const [editForm, setEditForm] = useState({ title: "", content: "" });
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -51,6 +64,20 @@ const AdminPage = () => {
       ]);
       setStories(storiesData);
       setCategories(categoriesData);
+
+      // Fetch reports
+      const { data: reportsData } = await supabase
+        .from('reports')
+        .select('*')
+        .order('created_at', { ascending: false });
+      setReports((reportsData || []) as unknown as Report[]);
+
+      // Fetch online users
+      const { data: presenceData } = await supabase
+        .from('user_presence')
+        .select('*')
+        .eq('is_online', true);
+      setOnlineUsers(presenceData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -72,11 +99,7 @@ const AdminPage = () => {
       toast({ title: "Story veröffentlicht!" });
     } catch (error) {
       console.error('Error publishing story:', error);
-      toast({
-        title: "Fehler",
-        description: "Story konnte nicht veröffentlicht werden.",
-        variant: "destructive",
-      });
+      toast({ title: "Fehler", variant: "destructive" });
     }
   };
 
@@ -89,22 +112,71 @@ const AdminPage = () => {
       toast({ title: "Story abgelehnt" });
     } catch (error) {
       console.error('Error rejecting story:', error);
-      toast({
-        title: "Fehler",
-        description: "Story konnte nicht abgelehnt werden.",
-        variant: "destructive",
-      });
+      toast({ title: "Fehler", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Story wirklich löschen?')) return;
+    try {
+      await deleteStory(id);
+      setStories(stories.filter(s => s.id !== id));
+      toast({ title: "Story gelöscht" });
+    } catch (error) {
+      console.error('Error deleting story:', error);
+      toast({ title: "Fehler", variant: "destructive" });
+    }
+  };
+
+  const handleEdit = (story: Story) => {
+    setEditingStory(story);
+    setEditForm({ title: story.title || '', content: story.content });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingStory) return;
+    try {
+      await updateStory(editingStory.id, editForm);
+      setStories(stories.map(s => 
+        s.id === editingStory.id ? { ...s, ...editForm } : s
+      ));
+      setEditingStory(null);
+      toast({ title: "Story aktualisiert" });
+    } catch (error) {
+      console.error('Error updating story:', error);
+      toast({ title: "Fehler", variant: "destructive" });
+    }
+  };
+
+  const handleDownloadTxt = (story: Story) => {
+    const content = `Titel: ${story.title || 'Ohne Titel'}\n\nKategorie: ${story.category?.name || 'Unkategorisiert'}\n\nInhalt:\n${story.content}\n\n---\nEingereicht: ${new Date(story.created_at).toLocaleString('de-DE')}\nVon: ${story.anonymous_author || 'Unbekannt'}`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `story-${story.id.slice(0, 8)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleReportStatus = async (reportId: string, status: string) => {
+    try {
+      await supabase
+        .from('reports')
+        .update({ status })
+        .eq('id', reportId);
+      setReports(reports.map(r => r.id === reportId ? { ...r, status: status as Report['status'] } : r));
+      toast({ title: "Status aktualisiert" });
+    } catch (error) {
+      console.error('Error updating report:', error);
+      toast({ title: "Fehler", variant: "destructive" });
     }
   };
 
   const handleEilmeldung = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eilmeldung.title || !eilmeldung.content || !eilmeldung.category_id) {
-      toast({
-        title: "Fehler",
-        description: "Bitte fülle alle Felder aus.",
-        variant: "destructive",
-      });
+      toast({ title: "Fehler", description: "Bitte fülle alle Felder aus.", variant: "destructive" });
       return;
     }
     
@@ -115,20 +187,13 @@ const AdminPage = () => {
         content: eilmeldung.content,
         category_id: eilmeldung.category_id,
       });
-      
-      // Reload stories to show the new breaking news
       const updatedStories = await fetchAllStories();
       setStories(updatedStories);
-      
       setEilmeldung({ title: "", content: "", category_id: "" });
       toast({ title: "Eilmeldung veröffentlicht!" });
     } catch (error) {
       console.error('Error creating breaking news:', error);
-      toast({
-        title: "Fehler",
-        description: "Eilmeldung konnte nicht erstellt werden.",
-        variant: "destructive",
-      });
+      toast({ title: "Fehler", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -136,6 +201,7 @@ const AdminPage = () => {
 
   const pendingCount = stories.filter(s => s.status === 'pending').length;
   const publishedCount = stories.filter(s => s.status === 'published').length;
+  const pendingReports = reports.filter(r => r.status === 'pending').length;
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -152,7 +218,7 @@ const AdminPage = () => {
 
   if (authLoading || isLoading) {
     return (
-      <MainLayout>
+      <MainLayout showFooter={false}>
         <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[50vh]">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
@@ -165,21 +231,21 @@ const AdminPage = () => {
   }
 
   return (
-    <MainLayout>
+    <MainLayout showFooter={false}>
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">
             <h1 className="font-display text-3xl font-bold mb-2">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Verwalte Storys und erstelle Eilmeldungen</p>
+            <p className="text-muted-foreground">Verwalte Storys, Meldungen und Nutzer</p>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-4 gap-4 mb-8">
             <div className="glass-card p-4 text-center">
               <FileText className="w-6 h-6 mx-auto mb-2 text-primary" />
               <p className="text-2xl font-bold">{stories.length}</p>
-              <p className="text-xs text-muted-foreground">Gesamt</p>
+              <p className="text-xs text-muted-foreground">Storys</p>
             </div>
             <div className="glass-card p-4 text-center">
               <Clock className="w-6 h-6 mx-auto mb-2 text-warning" />
@@ -187,17 +253,24 @@ const AdminPage = () => {
               <p className="text-xs text-muted-foreground">Offen</p>
             </div>
             <div className="glass-card p-4 text-center">
-              <Check className="w-6 h-6 mx-auto mb-2 text-success" />
-              <p className="text-2xl font-bold">{publishedCount}</p>
-              <p className="text-xs text-muted-foreground">Veröffentlicht</p>
+              <Flag className="w-6 h-6 mx-auto mb-2 text-destructive" />
+              <p className="text-2xl font-bold">{pendingReports}</p>
+              <p className="text-xs text-muted-foreground">Meldungen</p>
+            </div>
+            <div className="glass-card p-4 text-center">
+              <Users className="w-6 h-6 mx-auto mb-2 text-success" />
+              <p className="text-2xl font-bold">{onlineUsers.length}</p>
+              <p className="text-xs text-muted-foreground">Online</p>
             </div>
           </div>
 
           {/* Tabs */}
           <div className="flex gap-2 mb-6 overflow-x-auto">
             {[
-              { id: "stories", label: "Storys", icon: FileText },
+              { id: "stories", label: "Storys", icon: FileText, badge: pendingCount },
               { id: "eilmeldung", label: "Eilmeldung", icon: AlertTriangle },
+              { id: "reports", label: "Meldungen", icon: Flag, badge: pendingReports },
+              { id: "users", label: "Nutzer", icon: Users, badge: onlineUsers.length },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -210,9 +283,9 @@ const AdminPage = () => {
               >
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
-                {tab.id === "stories" && pendingCount > 0 && (
+                {tab.badge && tab.badge > 0 && (
                   <span className="ml-1 px-2 py-0.5 text-xs bg-warning/20 text-warning rounded-full">
-                    {pendingCount}
+                    {tab.badge}
                   </span>
                 )}
               </button>
@@ -222,6 +295,33 @@ const AdminPage = () => {
           {/* Stories Tab */}
           {activeTab === "stories" && (
             <div className="space-y-4">
+              {editingStory && (
+                <div className="glass-card p-4 border-2 border-primary">
+                  <h3 className="font-semibold mb-3">Story bearbeiten</h3>
+                  <input
+                    type="text"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                    placeholder="Titel"
+                    className="w-full mb-2 px-3 py-2 bg-secondary border border-border rounded-lg"
+                  />
+                  <textarea
+                    value={editForm.content}
+                    onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                    rows={4}
+                    className="w-full mb-3 px-3 py-2 bg-secondary border border-border rounded-lg resize-none"
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={handleSaveEdit} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg">
+                      Speichern
+                    </button>
+                    <button onClick={() => setEditingStory(null)} className="px-4 py-2 bg-secondary rounded-lg">
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {stories.length === 0 ? (
                 <div className="glass-card p-8 text-center text-muted-foreground">
                   Keine Storys vorhanden.
@@ -230,15 +330,17 @@ const AdminPage = () => {
                 stories.map((story) => (
                   <div key={story.id} className="glass-card p-4">
                     <div className="flex items-start justify-between gap-4 mb-3">
-                      <div>
-                        <span className="text-xs px-2 py-1 rounded-full bg-secondary inline-block mb-2">
-                          {story.category?.icon} {story.category?.name || 'Unkategorisiert'}
-                        </span>
-                        {story.is_breaking && (
-                          <span className="text-xs px-2 py-1 ml-2 rounded-full bg-destructive/20 text-destructive inline-block mb-2">
-                            ⚡ Eilmeldung
+                      <div className="flex-1">
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          <span className="text-xs px-2 py-1 rounded-full bg-secondary">
+                            {story.category?.icon} {story.category?.name || 'Unkategorisiert'}
                           </span>
-                        )}
+                          {story.is_breaking && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-destructive/20 text-destructive">
+                              ⚡ Eilmeldung
+                            </span>
+                          )}
+                        </div>
                         <h3 className="font-semibold">{story.title || 'Ohne Titel'}</h3>
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full flex-shrink-0 ${
@@ -256,30 +358,51 @@ const AdminPage = () => {
                       {story.content}
                     </p>
                     
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
                       <span className="text-xs text-muted-foreground">
                         {formatTime(story.created_at)}
                         {story.anonymous_author && ` • von ${story.anonymous_author}`}
                       </span>
                       
-                      {story.status === "pending" && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handlePublish(story.id)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-success/20 text-success rounded-lg text-sm hover:bg-success/30 transition-colors"
-                          >
-                            <Check className="w-4 h-4" />
-                            Veröffentlichen
-                          </button>
-                          <button
-                            onClick={() => handleReject(story.id)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-destructive/20 text-destructive rounded-lg text-sm hover:bg-destructive/30 transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                            Ablehnen
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => handleDownloadTxt(story)}
+                          className="flex items-center gap-1 px-2 py-1 bg-secondary text-foreground rounded text-xs hover:bg-secondary/80"
+                          title="Als TXT herunterladen"
+                        >
+                          <Download className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(story)}
+                          className="flex items-center gap-1 px-2 py-1 bg-secondary text-foreground rounded text-xs hover:bg-secondary/80"
+                          title="Bearbeiten"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(story.id)}
+                          className="flex items-center gap-1 px-2 py-1 bg-destructive/20 text-destructive rounded text-xs hover:bg-destructive/30"
+                          title="Löschen"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                        {story.status === "pending" && (
+                          <>
+                            <button
+                              onClick={() => handlePublish(story.id)}
+                              className="flex items-center gap-1 px-2 py-1 bg-success/20 text-success rounded text-xs hover:bg-success/30"
+                            >
+                              <Check className="w-3 h-3" /> OK
+                            </button>
+                            <button
+                              onClick={() => handleReject(story.id)}
+                              className="flex items-center gap-1 px-2 py-1 bg-destructive/20 text-destructive rounded text-xs hover:bg-destructive/30"
+                            >
+                              <X className="w-3 h-3" /> Nein
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -295,17 +418,14 @@ const AdminPage = () => {
                 <select
                   value={eilmeldung.category_id}
                   onChange={(e) => setEilmeldung({ ...eilmeldung, category_id: e.target.value })}
-                  className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground"
                 >
                   <option value="">Kategorie wählen...</option>
                   {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.icon} {cat.name}
-                    </option>
+                    <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
                   ))}
                 </select>
               </div>
-
               <div>
                 <label className="block text-sm font-medium mb-2">Titel</label>
                 <input
@@ -313,10 +433,9 @@ const AdminPage = () => {
                   value={eilmeldung.title}
                   onChange={(e) => setEilmeldung({ ...eilmeldung, title: e.target.value })}
                   placeholder="Eilmeldung Titel..."
-                  className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full px-4 py-3 bg-secondary border border-border rounded-xl"
                 />
               </div>
-              
               <div>
                 <label className="block text-sm font-medium mb-2">Inhalt</label>
                 <textarea
@@ -324,23 +443,99 @@ const AdminPage = () => {
                   onChange={(e) => setEilmeldung({ ...eilmeldung, content: e.target.value })}
                   placeholder="Eilmeldung Text..."
                   rows={4}
-                  className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                  className="w-full px-4 py-3 bg-secondary border border-border rounded-xl resize-none"
                 />
               </div>
-              
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex items-center gap-2 px-6 py-3 bg-destructive text-destructive-foreground rounded-xl font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-6 py-3 bg-destructive text-destructive-foreground rounded-xl font-medium disabled:opacity-50"
               >
-                {isSubmitting ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                 Eilmeldung veröffentlichen
               </button>
             </form>
+          )}
+
+          {/* Reports Tab */}
+          {activeTab === "reports" && (
+            <div className="space-y-4">
+              {reports.length === 0 ? (
+                <div className="glass-card p-8 text-center text-muted-foreground">
+                  Keine Meldungen vorhanden.
+                </div>
+              ) : (
+                reports.map((report) => (
+                  <div key={report.id} className="glass-card p-4">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div>
+                        <span className="text-xs px-2 py-1 bg-secondary rounded-full">
+                          {report.content_type}
+                        </span>
+                        <p className="font-medium mt-2">{report.reason}</p>
+                        {report.details && (
+                          <p className="text-sm text-muted-foreground mt-1">{report.details}</p>
+                        )}
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        report.status === 'pending' ? 'bg-warning/20 text-warning' :
+                        report.status === 'resolved' ? 'bg-success/20 text-success' :
+                        'bg-secondary text-muted-foreground'
+                      }`}>
+                        {report.status}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => handleReportStatus(report.id, 'resolved')}
+                        className="text-xs px-3 py-1 bg-success/20 text-success rounded hover:bg-success/30"
+                      >
+                        Erledigt
+                      </button>
+                      <button
+                        onClick={() => handleReportStatus(report.id, 'dismissed')}
+                        className="text-xs px-3 py-1 bg-secondary rounded hover:bg-secondary/80"
+                      >
+                        Ablehnen
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Users Tab */}
+          {activeTab === "users" && (
+            <div className="space-y-4">
+              <div className="glass-card p-4">
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
+                  Online Nutzer ({onlineUsers.length})
+                </h3>
+                {onlineUsers.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">Keine Nutzer online.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {onlineUsers.map((presence) => (
+                      <div key={presence.id} className="flex items-center gap-3 p-2 bg-secondary rounded-lg">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                          <Users className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">
+                            {presence.user_id ? `User ${presence.user_id.slice(0, 8)}...` : `Anonym ${presence.anonymous_id?.slice(0, 8)}...`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Aktiv: {formatTime(presence.last_seen)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>

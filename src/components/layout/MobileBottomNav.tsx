@@ -1,20 +1,22 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Newspaper, FolderOpen, Send, MessageCircle, Shield } from "lucide-react";
+import { Home, Newspaper, FolderOpen, Send, MessageCircle, Shield, Users, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
 export const MobileBottomNav = () => {
   const location = useLocation();
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const navItems = [
     { href: "/", icon: Home, label: "Home" },
     { href: "/news", icon: Newspaper, label: "News" },
-    { href: "/kategorien", icon: FolderOpen, label: "Kategorien" },
     { href: "/senden", icon: Send, label: "Senden" },
+    { href: "/gruppen", icon: Users, label: "Gruppen" },
     isAdmin 
       ? { href: "/admin", icon: Shield, label: "Admin" }
-      : { href: "/chat", icon: MessageCircle, label: "Chat" },
+      : user 
+        ? { href: "/profil", icon: User, label: "Profil" }
+        : { href: "/chat", icon: MessageCircle, label: "Chat" },
   ];
 
   return (
