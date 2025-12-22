@@ -494,6 +494,39 @@ export type Database = {
           },
         ]
       }
+      updates: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          external_url: string | null
+          id: string
+          is_active: boolean | null
+          title: string
+          update_type: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string | null
+          external_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          title: string
+          update_type?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          external_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          title?: string
+          update_type?: string
+        }
+        Relationships: []
+      }
       user_presence: {
         Row: {
           anonymous_id: string | null
