@@ -28,8 +28,9 @@ const StoryPage = () => {
     const loadData = async () => {
       if (!id) return;
       try {
+        // Pass true to include user's own stories (RLS will handle permissions)
         const [storyData, commentsData] = await Promise.all([
-          fetchStoryById(id),
+          fetchStoryById(id, !!user),
           fetchComments(id)
         ]);
         setStory(storyData);
@@ -41,7 +42,7 @@ const StoryPage = () => {
       }
     };
     loadData();
-  }, [id]);
+  }, [id, user]);
 
   const handleSubmitComment = async (asAnonymous: boolean) => {
     if (!newComment.trim() || !id) return;
@@ -104,60 +105,68 @@ const StoryPage = () => {
 
         <NewsCard story={story} showCommentLink={false} />
 
-        {/* Comments Section */}
-        <div id="comments" className="mt-8">
-          <h3 className="font-display text-xl font-bold mb-4">Kommentare ({comments.length})</h3>
-          
-          {/* Comment Input */}
-          <div className="glass-card p-4 mb-6">
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Schreibe einen Kommentar..."
-              rows={3}
-              className="w-full px-4 py-3 bg-secondary border border-border rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-            <div className="flex justify-end mt-3">
-              <button
-                onClick={onCommentSubmit}
-                disabled={!newComment.trim() || isSubmitting}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
-              >
-                <Send className="w-4 h-4" />
-                Senden
-              </button>
+        {/* Comments Section - only for published stories */}
+        {story.status === 'published' ? (
+          <div id="comments" className="mt-8">
+            <h3 className="font-display text-xl font-bold mb-4">Kommentare ({comments.length})</h3>
+            
+            {/* Comment Input */}
+            <div className="glass-card p-4 mb-6">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Schreibe einen Kommentar..."
+                rows={3}
+                className="w-full px-4 py-3 bg-secondary border border-border rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+              <div className="flex justify-end mt-3">
+                <button
+                  onClick={onCommentSubmit}
+                  disabled={!newComment.trim() || isSubmitting}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
+                >
+                  <Send className="w-4 h-4" />
+                  Senden
+                </button>
+              </div>
+            </div>
+
+            {/* Comments List */}
+            <div className="space-y-4">
+              {comments.map((comment) => (
+                <div key={comment.id} className="glass-card p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-primary">
+                        {comment.anonymous_author || (comment.profile as any)?.username || 'Anonym'}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(comment.created_at).toLocaleDateString('de-DE')}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setReportingCommentId(comment.id)}
+                      className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+                      title="Melden"
+                    >
+                      <Flag className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-sm">{comment.content}</p>
+                </div>
+              ))}
+              {comments.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">Noch keine Kommentare.</p>
+              )}
             </div>
           </div>
-
-          {/* Comments List */}
-          <div className="space-y-4">
-            {comments.map((comment) => (
-              <div key={comment.id} className="glass-card p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-primary">
-                      {comment.anonymous_author || (comment.profile as any)?.username || 'Anonym'}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(comment.created_at).toLocaleDateString('de-DE')}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setReportingCommentId(comment.id)}
-                    className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
-                    title="Melden"
-                  >
-                    <Flag className="w-4 h-4" />
-                  </button>
-                </div>
-                <p className="text-sm">{comment.content}</p>
-              </div>
-            ))}
-            {comments.length === 0 && (
-              <p className="text-center text-muted-foreground py-8">Noch keine Kommentare.</p>
-            )}
+        ) : (
+          <div className="mt-8 glass-card p-6 text-center">
+            <p className="text-muted-foreground">
+              Kommentare sind nur für veröffentlichte Stories verfügbar.
+            </p>
           </div>
-        </div>
+        )}
       </div>
 
       <AuthModal
