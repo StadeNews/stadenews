@@ -375,6 +375,8 @@ export const fetchUserStories = async (userId: string): Promise<Story[]> => {
 export const updateUserProfile = async (userId: string, data: {
   username?: string;
   avatar_url?: string;
+  bio?: string;
+  audio_url?: string;
 }): Promise<void> => {
   const { error } = await supabase
     .from('profiles')

@@ -60,6 +60,7 @@ export interface Profile {
   username: string | null;
   avatar_url: string | null;
   bio: string | null;
+  audio_url: string | null;
   is_online: boolean | null;
   likes_count: number | null;
   created_at: string;
