@@ -474,6 +474,112 @@ export type Database = {
         }
         Relationships: []
       }
+      spotted: {
+        Row: {
+          anonymous_author: string | null
+          content: string
+          created_at: string
+          id: string
+          likes_count: number | null
+          location: string | null
+          spotted_date: string | null
+          spotted_time: string | null
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          anonymous_author?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          likes_count?: number | null
+          location?: string | null
+          spotted_date?: string | null
+          spotted_time?: string | null
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          anonymous_author?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          likes_count?: number | null
+          location?: string | null
+          spotted_date?: string | null
+          spotted_time?: string | null
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      spotted_comments: {
+        Row: {
+          anonymous_author: string | null
+          content: string
+          created_at: string
+          id: string
+          spotted_id: string
+          user_id: string | null
+        }
+        Insert: {
+          anonymous_author?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          spotted_id: string
+          user_id?: string | null
+        }
+        Update: {
+          anonymous_author?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          spotted_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spotted_comments_spotted_id_fkey"
+            columns: ["spotted_id"]
+            isOneToOne: false
+            referencedRelation: "spotted"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spotted_likes: {
+        Row: {
+          anonymous_id: string | null
+          created_at: string
+          id: string
+          spotted_id: string
+          user_id: string | null
+        }
+        Insert: {
+          anonymous_id?: string | null
+          created_at?: string
+          id?: string
+          spotted_id: string
+          user_id?: string | null
+        }
+        Update: {
+          anonymous_id?: string | null
+          created_at?: string
+          id?: string
+          spotted_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spotted_likes_spotted_id_fkey"
+            columns: ["spotted_id"]
+            isOneToOne: false
+            referencedRelation: "spotted"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stories: {
         Row: {
           anonymous_author: string | null

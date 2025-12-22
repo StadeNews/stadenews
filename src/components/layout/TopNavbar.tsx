@@ -10,6 +10,7 @@ import stadeNewsLogo from "@/assets/stade-news-logo.png";
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/news", label: "News" },
+  { href: "/spotted", label: "Spotted" },
   { href: "/kategorien", label: "Kategorien" },
   { href: "/ueber-uns", label: "Über uns" },
 ];

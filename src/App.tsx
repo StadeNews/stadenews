@@ -15,6 +15,8 @@ import MeineEinsendungenPage from "./pages/MeineEinsendungenPage";
 import ChatPage from "./pages/ChatPage";
 import ChatGroupsPage from "./pages/ChatGroupsPage";
 import GroupChatPage from "./pages/GroupChatPage";
+import SpottedPage from "./pages/SpottedPage";
+import SpottedDetailPage from "./pages/SpottedDetailPage";
 import ProfilePage from "./pages/ProfilePage";
 import PublicProfilePage from "./pages/PublicProfilePage";
 import StatusCenterPage from "./pages/StatusCenterPage";
@@ -48,6 +50,8 @@ const App = () => (
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/gruppen" element={<ChatGroupsPage />} />
             <Route path="/gruppen/:id" element={<GroupChatPage />} />
+            <Route path="/spotted" element={<SpottedPage />} />
+            <Route path="/spotted/:id" element={<SpottedDetailPage />} />
             <Route path="/profil" element={<ProfilePage />} />
             <Route path="/profile/:username" element={<PublicProfilePage />} />
             <Route path="/status" element={<StatusCenterPage />} />
