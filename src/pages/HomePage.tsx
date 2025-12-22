@@ -8,23 +8,6 @@ import { fetchPublishedStories, fetchCategories } from "@/lib/api";
 import { Story, Category } from "@/types/database";
 import stadeNewsLogo from "@/assets/stade-news-logo.png";
 
-const features = [
-  {
-    icon: Shield,
-    title: "100% Anonym",
-    description: "Keine Registrierung nötig – deine Identität bleibt geheim.",
-  },
-  {
-    icon: Zap,
-    title: "Schneller als die Zeitung",
-    description: "News direkt aus der Stadt – in Echtzeit.",
-  },
-  {
-    icon: Users,
-    title: "Deine Stimme für Stade",
-    description: "Community statt Redaktion – von Stadern für Stader.",
-  },
-];
 
 const HomePage = () => {
   const [stories, setStories] = useState<Story[]>([]);
@@ -110,22 +93,55 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Features Section - Redesigned */}
       <section className="container mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-3 gap-6">
-          {features.map((feature, index) => (
-            <div
-              key={feature.title}
-              className="news-card p-6 text-center hover-lift animate-fade-up"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <div className="w-14 h-14 mx-auto mb-4 rounded-xl bg-primary/10 flex items-center justify-center">
-                <feature.icon className="w-7 h-7 text-primary" />
+        <div className="news-card overflow-hidden">
+          <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">
+            {/* Feature 1 */}
+            <div className="p-6 md:p-8 group">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                  <Shield className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-lg mb-1 text-headline">100% Anonym</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Keine Registrierung nötig. Deine Identität bleibt geschützt.
+                  </p>
+                </div>
               </div>
-              <h3 className="font-display font-bold text-lg mb-2 text-headline">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground">{feature.description}</p>
             </div>
-          ))}
+            
+            {/* Feature 2 */}
+            <div className="p-6 md:p-8 group">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                  <Zap className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-lg mb-1 text-headline">Echtzeit-News</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Direkt aus der Stadt – schneller als jede Zeitung.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Feature 3 */}
+            <div className="p-6 md:p-8 group">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                  <Users className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-lg mb-1 text-headline">Von Stadern</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Community statt Redaktion – echte lokale Stimmen.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

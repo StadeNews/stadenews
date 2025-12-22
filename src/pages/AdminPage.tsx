@@ -18,7 +18,11 @@ import {
   Users,
   MessageSquare,
   Flag,
-  Instagram
+  Instagram,
+  Ban,
+  Lock,
+  Unlock,
+  MessageCircle
 } from "lucide-react";
 import { 
   fetchAllStories, 
@@ -26,9 +30,25 @@ import {
   createBreakingNews,
   fetchCategories,
   updateStory,
-  deleteStory
+  deleteStory,
+  fetchChatGroups
 } from "@/lib/api";
-import type { Story, Category, Report, UserPresence } from "@/types/database";
+import type { Story, Category, Report, UserPresence, ChatGroup } from "@/types/database";
+
+interface BannedUser {
+  id: string;
+  user_id: string | null;
+  anonymous_id: string | null;
+  reason: string;
+  banned_by: string;
+  banned_until: string | null;
+  created_at: string;
+}
+
+interface ExtendedChatGroup extends ChatGroup {
+  is_closed?: boolean;
+  closed_reason?: string | null;
+}
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -38,8 +58,10 @@ const AdminPage = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
+  const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
+  const [chatGroups, setChatGroups] = useState<ExtendedChatGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"stories" | "eilmeldung" | "reports" | "users">("stories");
+  const [activeTab, setActiveTab] = useState<"stories" | "eilmeldung" | "reports" | "users" | "groups">("stories");
   const [eilmeldung, setEilmeldung] = useState({ title: "", content: "", category_id: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingStory, setEditingStory] = useState<Story | null>(null);
@@ -49,6 +71,14 @@ const AdminPage = () => {
   const [askingStory, setAskingStory] = useState<Story | null>(null);
   const [questionMessage, setQuestionMessage] = useState("");
   const [isSendingQuestion, setIsSendingQuestion] = useState(false);
+
+  // Ban modal state
+  const [banningId, setBanningId] = useState<{ type: 'user' | 'anonymous', id: string } | null>(null);
+  const [banReason, setBanReason] = useState("");
+
+  // Close group modal
+  const [closingGroupId, setClosingGroupId] = useState<string | null>(null);
+  const [closeReason, setCloseReason] = useState("");
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -63,12 +93,14 @@ const AdminPage = () => {
 
   const loadData = async () => {
     try {
-      const [storiesData, categoriesData] = await Promise.all([
+      const [storiesData, categoriesData, groupsData] = await Promise.all([
         fetchAllStories(),
-        fetchCategories()
+        fetchCategories(),
+        fetchChatGroups()
       ]);
       setStories(storiesData);
       setCategories(categoriesData);
+      setChatGroups(groupsData as ExtendedChatGroup[]);
 
       // Fetch reports
       const { data: reportsData } = await supabase
@@ -83,6 +115,13 @@ const AdminPage = () => {
         .select('*')
         .eq('is_online', true);
       setOnlineUsers(presenceData || []);
+
+      // Fetch banned users
+      const { data: bannedData } = await supabase
+        .from('banned_users')
+        .select('*')
+        .order('created_at', { ascending: false });
+      setBannedUsers((bannedData || []) as BannedUser[]);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -201,6 +240,73 @@ const AdminPage = () => {
     }
   };
 
+  const handleBanUser = async () => {
+    if (!banningId || !banReason.trim() || !user) return;
+    
+    try {
+      await supabase.from('banned_users').insert({
+        user_id: banningId.type === 'user' ? banningId.id : null,
+        anonymous_id: banningId.type === 'anonymous' ? banningId.id : null,
+        reason: banReason.trim(),
+        banned_by: user.id,
+      });
+      
+      toast({ title: "Nutzer gesperrt" });
+      setBanningId(null);
+      setBanReason("");
+      loadData();
+    } catch (error) {
+      console.error('Error banning user:', error);
+      toast({ title: "Fehler", variant: "destructive" });
+    }
+  };
+
+  const handleUnbanUser = async (banId: string) => {
+    try {
+      await supabase.from('banned_users').delete().eq('id', banId);
+      setBannedUsers(bannedUsers.filter(b => b.id !== banId));
+      toast({ title: "Sperre aufgehoben" });
+    } catch (error) {
+      console.error('Error unbanning user:', error);
+      toast({ title: "Fehler", variant: "destructive" });
+    }
+  };
+
+  const handleToggleGroupClosed = async (groupId: string, shouldClose: boolean) => {
+    try {
+      await supabase
+        .from('chat_groups')
+        .update({ 
+          is_closed: shouldClose, 
+          closed_reason: shouldClose ? closeReason || null : null,
+          closed_by: shouldClose ? user?.id : null 
+        })
+        .eq('id', groupId);
+      
+      setChatGroups(chatGroups.map(g => 
+        g.id === groupId ? { ...g, is_closed: shouldClose, closed_reason: shouldClose ? closeReason : null } : g
+      ));
+      setClosingGroupId(null);
+      setCloseReason("");
+      toast({ title: shouldClose ? "Gruppe geschlossen" : "Gruppe geöffnet" });
+    } catch (error) {
+      console.error('Error toggling group:', error);
+      toast({ title: "Fehler", variant: "destructive" });
+    }
+  };
+    try {
+      await supabase
+        .from('reports')
+        .update({ status })
+        .eq('id', reportId);
+      setReports(reports.map(r => r.id === reportId ? { ...r, status: status as Report['status'] } : r));
+      toast({ title: "Status aktualisiert" });
+    } catch (error) {
+      console.error('Error updating report:', error);
+      toast({ title: "Fehler", variant: "destructive" });
+    }
+  };
+
   const handleEilmeldung = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eilmeldung.title || !eilmeldung.content || !eilmeldung.category_id) {
@@ -228,6 +334,8 @@ const AdminPage = () => {
   };
 
   const pendingCount = stories.filter(s => s.status === 'pending').length;
+  const publishedCount = stories.filter(s => s.status === 'published').length;
+  const pendingReports = reports.filter(r => r.status === 'pending').length;
   const publishedCount = stories.filter(s => s.status === 'published').length;
   const pendingReports = reports.filter(r => r.status === 'pending').length;
 
@@ -299,6 +407,7 @@ const AdminPage = () => {
               { id: "eilmeldung", label: "Eilmeldung", icon: AlertTriangle },
               { id: "reports", label: "Meldungen", icon: Flag, badge: pendingReports },
               { id: "users", label: "Nutzer", icon: Users, badge: onlineUsers.length },
+              { id: "groups", label: "Gruppen", icon: MessageCircle, badge: chatGroups.length },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -585,6 +694,67 @@ const AdminPage = () => {
           {/* Users Tab */}
           {activeTab === "users" && (
             <div className="space-y-4">
+              {/* Ban Modal */}
+              {banningId && (
+                <div className="bg-card border-2 border-destructive rounded-xl p-4">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2 text-foreground">
+                    <Ban className="w-5 h-5 text-destructive" />
+                    Nutzer sperren
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {banningId.type === 'user' ? `User: ${banningId.id.slice(0, 8)}...` : `Anonym: ${banningId.id.slice(0, 8)}...`}
+                  </p>
+                  <input
+                    type="text"
+                    value={banReason}
+                    onChange={(e) => setBanReason(e.target.value)}
+                    placeholder="Grund für Sperre..."
+                    className="w-full mb-3 px-3 py-2 bg-secondary border border-border rounded-lg text-foreground"
+                  />
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={handleBanUser}
+                      disabled={!banReason.trim()}
+                      className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg disabled:opacity-50"
+                    >
+                      <Ban className="w-4 h-4" /> Sperren
+                    </button>
+                    <button onClick={() => { setBanningId(null); setBanReason(""); }} className="px-4 py-2 bg-secondary text-foreground rounded-lg">
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Banned Users */}
+              {bannedUsers.length > 0 && (
+                <div className="bg-card border border-border rounded-xl p-4">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2 text-foreground">
+                    <Ban className="w-5 h-5 text-destructive" />
+                    Gesperrte Nutzer ({bannedUsers.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {bannedUsers.map((ban) => (
+                      <div key={ban.id} className="flex items-center justify-between p-2 bg-destructive/10 rounded-lg">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {ban.user_id ? `User ${ban.user_id.slice(0, 8)}...` : `Anonym ${ban.anonymous_id?.slice(0, 8)}...`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{ban.reason}</p>
+                        </div>
+                        <button
+                          onClick={() => handleUnbanUser(ban.id)}
+                          className="text-xs px-3 py-1 bg-green-500/20 text-green-600 rounded hover:bg-green-500/30"
+                        >
+                          Entsperren
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Online Users */}
               <div className="bg-card border border-border rounded-xl p-4">
                 <h3 className="font-semibold mb-3 flex items-center gap-2 text-foreground">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -607,11 +777,96 @@ const AdminPage = () => {
                             Aktiv: {formatTime(presence.last_seen)}
                           </p>
                         </div>
+                        <button
+                          onClick={() => setBanningId({ 
+                            type: presence.user_id ? 'user' : 'anonymous', 
+                            id: presence.user_id || presence.anonymous_id || '' 
+                          })}
+                          className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                          title="Nutzer sperren"
+                        >
+                          <Ban className="w-4 h-4" />
+                        </button>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Groups Tab */}
+          {activeTab === "groups" && (
+            <div className="space-y-4">
+              {/* Close Group Modal */}
+              {closingGroupId && (
+                <div className="bg-card border-2 border-yellow-500 rounded-xl p-4">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2 text-foreground">
+                    <Lock className="w-5 h-5 text-yellow-600" />
+                    Gruppe vorübergehend schließen
+                  </h3>
+                  <input
+                    type="text"
+                    value={closeReason}
+                    onChange={(e) => setCloseReason(e.target.value)}
+                    placeholder="Grund für Schließung (optional)..."
+                    className="w-full mb-3 px-3 py-2 bg-secondary border border-border rounded-lg text-foreground"
+                  />
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleToggleGroupClosed(closingGroupId, true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg"
+                    >
+                      <Lock className="w-4 h-4" /> Schließen
+                    </button>
+                    <button onClick={() => { setClosingGroupId(null); setCloseReason(""); }} className="px-4 py-2 bg-secondary text-foreground rounded-lg">
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {chatGroups.length === 0 ? (
+                <div className="bg-card border border-border rounded-xl p-8 text-center text-muted-foreground">
+                  Keine Gruppen vorhanden.
+                </div>
+              ) : (
+                chatGroups.map((group) => (
+                  <div key={group.id} className={`bg-card border rounded-xl p-4 ${group.is_closed ? 'border-yellow-500/50' : 'border-border'}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${group.is_closed ? 'bg-yellow-500/20' : 'bg-primary/20'}`}>
+                          {group.is_closed ? <Lock className="w-5 h-5 text-yellow-600" /> : <MessageCircle className="w-5 h-5 text-primary" />}
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-foreground">{group.name}</h4>
+                          {group.description && <p className="text-xs text-muted-foreground">{group.description}</p>}
+                          {group.is_closed && group.closed_reason && (
+                            <p className="text-xs text-yellow-600 mt-1">Grund: {group.closed_reason}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {group.is_closed ? (
+                          <button
+                            onClick={() => handleToggleGroupClosed(group.id, false)}
+                            className="flex items-center gap-1 px-3 py-2 bg-green-500/20 text-green-600 rounded-lg text-sm hover:bg-green-500/30"
+                          >
+                            <Unlock className="w-4 h-4" /> Öffnen
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setClosingGroupId(group.id)}
+                            className="flex items-center gap-1 px-3 py-2 bg-yellow-500/20 text-yellow-600 rounded-lg text-sm hover:bg-yellow-500/30"
+                          >
+                            <Lock className="w-4 h-4" /> Schließen
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>
