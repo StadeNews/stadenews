@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ThumbsUp, Flag, Share2, Clock, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -8,7 +8,7 @@ import { useAnonymousId } from "@/hooks/useAnonymousId";
 import { toggleLike, checkUserLiked } from "@/lib/api";
 import { Story } from "@/types/database";
 import { AuthModal } from "@/components/auth/AuthModal";
-import { useEffect } from "react";
+import { ReportModal } from "@/components/shared/ReportModal";
 
 interface NewsCardProps {
   story: Story;
@@ -23,6 +23,7 @@ export const NewsCard = ({ story, className, showCommentLink = true }: NewsCardP
   const [likesCount, setLikesCount] = useState(story.likes_count);
   const [hasLiked, setHasLiked] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<'like' | null>(null);
 
   useEffect(() => {
@@ -62,10 +63,7 @@ export const NewsCard = ({ story, className, showCommentLink = true }: NewsCardP
   };
 
   const handleReport = () => {
-    toast({
-      title: "Meldung eingegangen",
-      description: "Danke für dein Feedback. Wir prüfen den Beitrag.",
-    });
+    setShowReportModal(true);
   };
 
   const handleShare = async () => {
@@ -196,6 +194,13 @@ export const NewsCard = ({ story, className, showCommentLink = true }: NewsCardP
           setPendingAction(null);
         }}
         title="Liken"
+      />
+
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        contentType="story"
+        contentId={story.id}
       />
     </>
   );
