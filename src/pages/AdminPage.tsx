@@ -31,9 +31,12 @@ import {
   fetchCategories,
   updateStory,
   deleteStory,
-  fetchChatGroups
+  fetchChatGroups,
+  deleteChatGroup,
+  fetchGroupMessages,
+  deleteGroupMessage
 } from "@/lib/api";
-import type { Story, Category, Report, UserPresence, ChatGroup } from "@/types/database";
+import type { Story, Category, Report, UserPresence, ChatGroup, GroupMessage } from "@/types/database";
 
 interface BannedUser {
   id: string;
@@ -79,6 +82,10 @@ const AdminPage = () => {
   // Close group modal
   const [closingGroupId, setClosingGroupId] = useState<string | null>(null);
   const [closeReason, setCloseReason] = useState("");
+
+  // Group messages for deletion
+  const [viewingGroupMessages, setViewingGroupMessages] = useState<{ groupId: string; messages: GroupMessage[] } | null>(null);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -292,6 +299,48 @@ const AdminPage = () => {
     } catch (error) {
       console.error('Error toggling group:', error);
       toast({ title: "Fehler", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: string) => {
+    if (!confirm('Gruppe wirklich löschen? Alle Nachrichten werden gelöscht.')) return;
+    
+    try {
+      await deleteChatGroup(groupId);
+      setChatGroups(chatGroups.filter(g => g.id !== groupId));
+      toast({ title: "Gruppe gelöscht" });
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      toast({ title: "Fehler beim Löschen", variant: "destructive" });
+    }
+  };
+
+  const handleViewGroupMessages = async (groupId: string) => {
+    setLoadingMessages(true);
+    try {
+      const messages = await fetchGroupMessages(groupId);
+      setViewingGroupMessages({ groupId, messages });
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      toast({ title: "Fehler", variant: "destructive" });
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const handleDeleteGroupMessage = async (messageId: string) => {
+    if (!viewingGroupMessages) return;
+    
+    try {
+      await deleteGroupMessage(messageId);
+      setViewingGroupMessages({
+        ...viewingGroupMessages,
+        messages: viewingGroupMessages.messages.filter(m => m.id !== messageId)
+      });
+      toast({ title: "Nachricht gelöscht" });
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast({ title: "Fehler beim Löschen", variant: "destructive" });
     }
   };
 
@@ -812,6 +861,46 @@ const AdminPage = () => {
                 </div>
               )}
 
+              {/* View Group Messages Modal */}
+              {viewingGroupMessages && (
+                <div className="bg-card border-2 border-primary rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold flex items-center gap-2 text-foreground">
+                      <MessageSquare className="w-5 h-5 text-primary" />
+                      Nachrichten in Gruppe
+                    </h3>
+                    <button 
+                      onClick={() => setViewingGroupMessages(null)} 
+                      className="px-3 py-1 bg-secondary text-foreground rounded-lg text-sm"
+                    >
+                      Schließen
+                    </button>
+                  </div>
+                  {viewingGroupMessages.messages.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">Keine Nachrichten vorhanden.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {viewingGroupMessages.messages.map((msg) => (
+                        <div key={msg.id} className="flex items-start justify-between gap-2 p-2 bg-secondary rounded-lg">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-primary font-medium">{msg.nickname}</p>
+                            <p className="text-sm text-foreground break-words">{msg.content}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(msg.created_at).toLocaleString('de-DE')}</p>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteGroupMessage(msg.id)}
+                            className="p-1.5 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                            title="Löschen"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {chatGroups.length === 0 ? (
                 <div className="bg-card border border-border rounded-xl p-8 text-center text-muted-foreground">
                   Keine Gruppen vorhanden.
@@ -832,7 +921,14 @@ const AdminPage = () => {
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => handleViewGroupMessages(group.id)}
+                          disabled={loadingMessages}
+                          className="flex items-center gap-1 px-3 py-2 bg-secondary text-foreground rounded-lg text-sm hover:bg-secondary/80"
+                        >
+                          <MessageSquare className="w-4 h-4" /> Nachrichten
+                        </button>
                         {group.is_closed ? (
                           <button
                             onClick={() => handleToggleGroupClosed(group.id, false)}
@@ -848,6 +944,12 @@ const AdminPage = () => {
                             <Lock className="w-4 h-4" /> Schließen
                           </button>
                         )}
+                        <button
+                          onClick={() => handleDeleteGroup(group.id)}
+                          className="flex items-center gap-1 px-3 py-2 bg-destructive/20 text-destructive rounded-lg text-sm hover:bg-destructive/30"
+                        >
+                          <Trash2 className="w-4 h-4" /> Löschen
+                        </button>
                       </div>
                     </div>
                   </div>

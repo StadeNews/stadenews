@@ -8,7 +8,7 @@ import { useAnonymousId } from '@/hooks/useAnonymousId';
 interface ReportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  contentType: 'story' | 'comment' | 'chat_message' | 'group_message' | 'profile';
+  contentType: 'story' | 'comment' | 'chat_message' | 'group_message' | 'profile' | 'spotted' | 'spotted_comment';
   contentId: string;
 }
 
