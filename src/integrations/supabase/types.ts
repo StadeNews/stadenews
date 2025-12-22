@@ -79,6 +79,36 @@ export type Database = {
         }
         Relationships: []
       }
+      banned_users: {
+        Row: {
+          anonymous_id: string | null
+          banned_by: string
+          banned_until: string | null
+          created_at: string
+          id: string
+          reason: string
+          user_id: string | null
+        }
+        Insert: {
+          anonymous_id?: string | null
+          banned_by: string
+          banned_until?: string | null
+          created_at?: string
+          id?: string
+          reason: string
+          user_id?: string | null
+        }
+        Update: {
+          anonymous_id?: string | null
+          banned_by?: string
+          banned_until?: string | null
+          created_at?: string
+          id?: string
+          reason?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string
@@ -114,27 +144,36 @@ export type Database = {
       }
       chat_groups: {
         Row: {
+          closed_by: string | null
+          closed_reason: string | null
           created_at: string
           creator_id: string | null
           description: string | null
           id: string
           is_active: boolean | null
+          is_closed: boolean | null
           name: string
         }
         Insert: {
+          closed_by?: string | null
+          closed_reason?: string | null
           created_at?: string
           creator_id?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
+          is_closed?: boolean | null
           name: string
         }
         Update: {
+          closed_by?: string | null
+          closed_reason?: string | null
           created_at?: string
           creator_id?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
+          is_closed?: boolean | null
           name?: string
         }
         Relationships: []

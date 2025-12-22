@@ -3,21 +3,29 @@ import { useParams, Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ChatMessage, ChatMessageData } from "@/components/shared/ChatMessage";
 import { ChatMessageSkeleton } from "@/components/shared/SkeletonLoaders";
+import { ReportModal } from "@/components/shared/ReportModal";
 import { useToast } from "@/hooks/use-toast";
-import { Send, ArrowLeft, Users } from "lucide-react";
+import { Send, ArrowLeft, Users, Lock, Mail } from "lucide-react";
 import { fetchGroupMessages, sendGroupMessage, fetchChatGroups } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { generateNickname, useAnonymousId } from "@/hooks/useAnonymousId";
+import { useAnonymousPreference } from "@/hooks/useAnonymousPreference";
 import { supabase } from "@/integrations/supabase/client";
 import type { ChatGroup } from "@/types/database";
+
+interface ExtendedChatGroup extends ChatGroup {
+  is_closed?: boolean;
+  closed_reason?: string | null;
+}
 
 const GroupChatPage = () => {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
   const { user, isAdmin } = useAuth();
   const { anonymousId } = useAnonymousId();
-  const [group, setGroup] = useState<ChatGroup | null>(null);
+  const { preferAnonymous, savePreference } = useAnonymousPreference();
+  const [group, setGroup] = useState<ExtendedChatGroup | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -25,6 +33,7 @@ const GroupChatPage = () => {
   const [onlineCount, setOnlineCount] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingMessage, setPendingMessage] = useState("");
+  const [reportingMessageId, setReportingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -121,6 +130,12 @@ const GroupChatPage = () => {
     
     if (!newMessage.trim() || !id) return;
 
+    // If user has saved preference for anonymous, use it directly
+    if (preferAnonymous === true) {
+      await sendMessageToDatabase(newMessage, true);
+      return;
+    }
+
     if (!user) {
       setPendingMessage(newMessage);
       setShowAuthModal(true);
@@ -156,16 +171,15 @@ const GroupChatPage = () => {
   const handleAuthModalClose = (action?: 'login' | 'anonymous') => {
     setShowAuthModal(false);
     if (action === 'anonymous' && pendingMessage) {
+      // Save preference for future messages
+      savePreference(true);
       sendMessageToDatabase(pendingMessage, true);
     }
     setPendingMessage("");
   };
 
   const handleReport = (msgId: string) => {
-    toast({
-      title: "Nachricht gemeldet",
-      description: "Danke für dein Feedback.",
-    });
+    setReportingMessageId(msgId);
   };
 
   if (!group && !isLoading) {
@@ -176,6 +190,43 @@ const GroupChatPage = () => {
           <Link to="/gruppen" className="text-primary hover:underline mt-4 inline-block">
             Zurück zu Gruppen
           </Link>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Show closed overlay if group is temporarily closed
+  if (group?.is_closed && !isAdmin) {
+    return (
+      <MainLayout>
+        <div className="container mx-auto px-4 py-8 h-[calc(100vh-8rem)] flex items-center justify-center">
+          <div className="glass-card p-8 max-w-md text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/20 flex items-center justify-center">
+              <Lock className="w-8 h-8 text-destructive" />
+            </div>
+            <h2 className="font-display text-2xl font-bold mb-2">Vorübergehend geschlossen</h2>
+            <p className="text-muted-foreground mb-4">
+              Dieser Gruppenchat wurde vorübergehend durch einen Admin geschlossen.
+            </p>
+            {group.closed_reason && (
+              <p className="text-sm bg-secondary p-3 rounded-lg mb-4">
+                Grund: {group.closed_reason}
+              </p>
+            )}
+            <div className="pt-4 border-t border-border">
+              <p className="text-sm text-muted-foreground mb-2">Fragen? Kontaktiere uns:</p>
+              <a 
+                href="mailto:Stade.news@web.de" 
+                className="inline-flex items-center gap-2 text-primary hover:underline"
+              >
+                <Mail className="w-4 h-4" />
+                Stade.news@web.de
+              </a>
+            </div>
+            <Link to="/gruppen" className="btn-secondary mt-6 w-full">
+              Zurück zu Gruppen
+            </Link>
+          </div>
         </div>
       </MainLayout>
     );
@@ -256,6 +307,13 @@ const GroupChatPage = () => {
         onClose={() => handleAuthModalClose()}
         onContinueAnonymous={() => handleAuthModalClose('anonymous')}
         showAnonymousOption={true}
+      />
+
+      <ReportModal
+        isOpen={!!reportingMessageId}
+        onClose={() => setReportingMessageId(null)}
+        contentType="group_message"
+        contentId={reportingMessageId || ''}
       />
     </MainLayout>
   );

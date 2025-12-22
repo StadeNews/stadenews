@@ -80,6 +80,9 @@ export interface ChatGroup {
   creator_id: string | null;
   created_at: string;
   is_active: boolean;
+  is_closed?: boolean;
+  closed_reason?: string | null;
+  closed_by?: string | null;
   creator?: Profile | null;
 }
 
