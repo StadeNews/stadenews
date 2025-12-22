@@ -65,20 +65,40 @@ const ProfilePage = () => {
 
   const loadData = async () => {
     if (!user) return;
-    
+
     try {
-      const [profileData, commentsData, storiesData] = await Promise.all([
-        fetchUserProfile(user.id),
+      let profileData = await fetchUserProfile(user.id);
+
+      // If the profile row doesn't exist yet (older users / missing trigger), create it once.
+      if (!profileData) {
+        const fallbackUsername =
+          (user.user_metadata as any)?.username ||
+          user.email?.split("@")[0] ||
+          "User";
+
+        const { error: insertError } = await supabase
+          .from("profiles")
+          .insert({ id: user.id, username: fallbackUsername })
+          .select()
+          .maybeSingle();
+
+        if (insertError) throw insertError;
+
+        profileData = await fetchUserProfile(user.id);
+      }
+
+      const [commentsData, storiesData] = await Promise.all([
         fetchUserComments(user.id),
-        fetchUserStories(user.id)
+        fetchUserStories(user.id),
       ]);
+
       setProfile(profileData);
       setComments(commentsData);
       setStories(storiesData);
-      setNewUsername(profileData?.username || '');
-      setNewBio(profileData?.bio || '');
+      setNewUsername(profileData?.username || "");
+      setNewBio(profileData?.bio || "");
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.error("Error loading profile:", error);
       toast({
         title: "Fehler",
         description: "Profil konnte nicht geladen werden.",

@@ -144,6 +144,31 @@ export const TopNavbar = () => {
               ))}
               <div className="pt-2 border-t border-border space-y-2">
                 <ThemeToggle showLabel className="w-full justify-center" />
+
+                {user && (
+                  <>
+                    <Link
+                      to="/profil"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="btn-secondary w-full"
+                    >
+                      <User className="w-5 h-5" />
+                      Profil
+                    </Link>
+
+                    {isAdmin && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="btn-secondary w-full"
+                      >
+                        <Shield className="w-5 h-5" />
+                        Admin
+                      </Link>
+                    )}
+                  </>
+                )}
+
                 {!user && (
                   <button
                     onClick={() => {
