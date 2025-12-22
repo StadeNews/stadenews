@@ -2,95 +2,104 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Stade News Design System - Dark Mode with Neon Blue Accents */
+/* Stade News Design System - Modern News Portal Look */
 
 @layer base {
   :root {
-    /* Dark Navy/Black Base */
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
+    /* Light Mode - Clean News Portal */
+    --background: 0 0% 98%;
+    --foreground: 222 47% 11%;
 
-    /* Glassmorphism Cards */
-    --card: 222 47% 10%;
-    --card-foreground: 210 40% 98%;
+    /* Clean White Cards */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
-    --popover: 222 47% 10%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
-    /* Neon Blue Primary */
-    --primary: 199 89% 48%;
-    --primary-foreground: 222 47% 6%;
+    /* Professional Blue Primary */
+    --primary: 214 100% 45%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Muted Navy */
-    --secondary: 222 47% 15%;
-    --secondary-foreground: 210 40% 98%;
+    /* Light Gray Secondary */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 222 30% 18%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 220 8% 46%;
 
-    /* Accent matches Primary */
-    --accent: 199 89% 48%;
-    --accent-foreground: 222 47% 6%;
+    /* Accent Blue */
+    --accent: 214 100% 45%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 222 30% 20%;
-    --input: 222 30% 18%;
-    --ring: 199 89% 48%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 214 100% 45%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    /* Custom Neon Glow Effects */
-    --neon-glow: 199 89% 48%;
-    --neon-glow-soft: 199 89% 48% / 0.3;
-    
     /* Success/Warning */
     --success: 142 76% 36%;
-    --success-foreground: 210 40% 98%;
+    --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 6%;
+    --warning-foreground: 222 47% 11%;
 
-    /* Sidebar */
-    --sidebar-background: 222 47% 8%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 199 89% 48%;
-    --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 222 47% 15%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 30% 20%;
-    --sidebar-ring: 199 89% 48%;
+    /* News Accent Colors */
+    --news-breaking: 0 84% 60%;
+    --news-highlight: 214 100% 45%;
+
+    /* Sidebar - Light */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 214 100% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 214 100% 45%;
   }
 
   .dark {
-    /* Same as root - always dark mode */
-    --background: 222 47% 6%;
+    /* Dark Mode - Elegant Dark */
+    --background: 222 47% 8%;
     --foreground: 210 40% 98%;
-    --card: 222 47% 10%;
+    
+    --card: 222 47% 11%;
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 10%;
+    
+    --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
-    --primary: 199 89% 48%;
-    --primary-foreground: 222 47% 6%;
+    
+    --primary: 214 100% 55%;
+    --primary-foreground: 0 0% 100%;
+    
     --secondary: 222 47% 15%;
     --secondary-foreground: 210 40% 98%;
+    
     --muted: 222 30% 18%;
     --muted-foreground: 215 20% 65%;
-    --accent: 199 89% 48%;
-    --accent-foreground: 222 47% 6%;
+    
+    --accent: 214 100% 55%;
+    --accent-foreground: 0 0% 100%;
+    
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
+    
     --border: 222 30% 20%;
     --input: 222 30% 18%;
-    --ring: 199 89% 48%;
-    --sidebar-background: 222 47% 8%;
+    --ring: 214 100% 55%;
+
+    --sidebar-background: 222 47% 10%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 199 89% 48%;
-    --sidebar-primary-foreground: 222 47% 6%;
+    --sidebar-primary: 214 100% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 222 47% 15%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 222 30% 20%;
-    --sidebar-ring: 199 89% 48%;
+    --sidebar-ring: 214 100% 55%;
   }
 }
 
@@ -101,55 +110,76 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-feature-settings: "kern" 1, "liga" 1;
   }
 
   /* Custom Scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-background;
+    @apply bg-muted/50;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted rounded-full;
+    @apply bg-muted-foreground/20 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-primary/50;
+    @apply bg-muted-foreground/40;
   }
 }
 
 @layer components {
-  /* Glassmorphism Card */
+  /* Modern News Card */
+  .news-card {
+    @apply bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300;
+  }
+
+  /* Glass Card for special elements */
   .glass-card {
-    @apply bg-card/60 backdrop-blur-xl border border-border/50 rounded-xl;
+    @apply bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-sm;
   }
 
-  /* Neon Glow Effect */
-  .neon-glow {
-    box-shadow: 0 0 20px hsl(var(--neon-glow) / 0.4),
-                0 0 40px hsl(var(--neon-glow) / 0.2),
-                0 0 60px hsl(var(--neon-glow) / 0.1);
+  /* Breaking News Badge */
+  .breaking-badge {
+    @apply bg-destructive text-destructive-foreground px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide;
+    animation: pulse-breaking 2s ease-in-out infinite;
   }
 
-  .neon-glow-sm {
-    box-shadow: 0 0 10px hsl(var(--neon-glow) / 0.3),
-                0 0 20px hsl(var(--neon-glow) / 0.15);
+  @keyframes pulse-breaking {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
   }
 
-  /* Neon Text */
-  .neon-text {
-    text-shadow: 0 0 10px hsl(var(--neon-glow) / 0.8),
-                 0 0 20px hsl(var(--neon-glow) / 0.5),
-                 0 0 30px hsl(var(--neon-glow) / 0.3);
+  /* Category Tag */
+  .category-tag {
+    @apply inline-flex items-center px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium;
   }
 
-  /* Gradient Text */
-  .gradient-text {
-    @apply bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent;
+  /* Button Styles - Large & Accessible */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold text-base hover:bg-primary/90 transition-all duration-200 min-h-[48px];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 bg-secondary text-secondary-foreground rounded-lg font-semibold text-base hover:bg-secondary/80 transition-all duration-200 min-h-[48px];
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 border-2 border-border text-foreground rounded-lg font-semibold text-base hover:bg-secondary transition-all duration-200 min-h-[48px];
+  }
+
+  /* Input Styles - Large & Accessible */
+  .input-field {
+    @apply w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all min-h-[48px] text-base;
+  }
+
+  /* Section Divider */
+  .section-divider {
+    @apply border-t border-border my-8;
   }
 
   /* Hover Lift Effect */
@@ -158,17 +188,16 @@
   }
 
   .hover-lift:hover {
-    @apply -translate-y-1;
-    box-shadow: 0 10px 40px hsl(var(--neon-glow) / 0.2);
+    @apply -translate-y-0.5 shadow-lg;
   }
 
   /* Skeleton Animation */
   .skeleton-shimmer {
-    @apply relative overflow-hidden;
+    @apply relative overflow-hidden bg-muted;
     background: linear-gradient(
       90deg,
       hsl(var(--muted)) 0%,
-      hsl(var(--muted) / 0.5) 50%,
+      hsl(var(--muted) / 0.6) 50%,
       hsl(var(--muted)) 100%
     );
     background-size: 200% 100%;
@@ -176,12 +205,18 @@
   }
 
   @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Help Hotline Box */
+  .help-hotline {
+    @apply bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-center;
+  }
+
+  /* Theme Toggle */
+  .theme-toggle {
+    @apply flex items-center gap-2 p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors;
   }
 }
 
@@ -193,5 +228,18 @@
 
   .mb-safe {
     margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Text styles for readability */
+  .text-headline {
+    @apply font-display text-foreground leading-tight tracking-tight;
+  }
+
+  .text-body {
+    @apply text-foreground leading-relaxed;
+  }
+
+  .text-caption {
+    @apply text-sm text-muted-foreground;
   }
 }
