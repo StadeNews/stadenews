@@ -1,27 +1,29 @@
 import { Link } from "react-router-dom";
-import { LucideIcon } from "lucide-react";
+import { Siren, MessageSquare, AlertTriangle, PartyPopper, VolumeX, Heart, LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Category } from "@/types/database";
 
-export interface CategoryData {
-  id: string;
-  name: string;
-  icon: LucideIcon;
-  description: string;
-  count: number;
-  color: string;
-}
+const iconMap: Record<string, LucideIcon> = {
+  Siren,
+  MessageSquare,
+  AlertTriangle,
+  PartyPopper,
+  VolumeX,
+  Heart,
+};
 
 interface CategoryCardProps {
-  category: CategoryData;
+  category: Category;
+  count: number;
   className?: string;
 }
 
-export const CategoryCard = ({ category, className }: CategoryCardProps) => {
-  const Icon = category.icon;
+export const CategoryCard = ({ category, count, className }: CategoryCardProps) => {
+  const Icon = iconMap[category.icon] || MessageSquare;
   
   return (
     <Link
-      to={`/news?kategorie=${category.id}`}
+      to={`/news?kategorie=${category.slug}`}
       className={cn(
         "glass-card p-5 hover-lift group block",
         className
@@ -43,7 +45,7 @@ export const CategoryCard = ({ category, className }: CategoryCardProps) => {
       </p>
       
       <span className="inline-flex items-center px-2.5 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
-        {category.count} Beiträge
+        {count} Beiträge
       </span>
     </Link>
   );

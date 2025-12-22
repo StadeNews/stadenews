@@ -1,17 +1,21 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Newspaper, FolderOpen, Send, MessageCircle } from "lucide-react";
+import { Home, Newspaper, FolderOpen, Send, MessageCircle, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/", icon: Home, label: "Home" },
-  { href: "/news", icon: Newspaper, label: "News" },
-  { href: "/kategorien", icon: FolderOpen, label: "Kategorien" },
-  { href: "/senden", icon: Send, label: "Senden" },
-  { href: "/chat", icon: MessageCircle, label: "Chat" },
-];
+import { useAuth } from "@/hooks/useAuth";
 
 export const MobileBottomNav = () => {
   const location = useLocation();
+  const { isAdmin } = useAuth();
+
+  const navItems = [
+    { href: "/", icon: Home, label: "Home" },
+    { href: "/news", icon: Newspaper, label: "News" },
+    { href: "/kategorien", icon: FolderOpen, label: "Kategorien" },
+    { href: "/senden", icon: Send, label: "Senden" },
+    isAdmin 
+      ? { href: "/admin", icon: Shield, label: "Admin" }
+      : { href: "/chat", icon: MessageCircle, label: "Chat" },
+  ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden glass-card border-t border-border/30 pb-safe">
