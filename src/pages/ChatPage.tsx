@@ -4,81 +4,163 @@ import { ChatMessage, ChatMessageData } from "@/components/shared/ChatMessage";
 import { ChatMessageSkeleton } from "@/components/shared/SkeletonLoaders";
 import { useToast } from "@/hooks/use-toast";
 import { Send, Users } from "lucide-react";
-
-// Random nickname generator
-const adjectives = ["Mysteriöser", "Anonymer", "Stille", "Nachtaktive", "Geheimer", "Unsichtbare", "Mutige", "Kluge"];
-const nouns = ["Stader", "Vogel", "Schatten", "Beobachter", "Erzähler", "Wanderer", "Insider", "Geist"];
-
-const generateNickname = () => {
-  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const noun = nouns[Math.floor(Math.random() * nouns.length)];
-  const num = Math.floor(Math.random() * 99) + 1;
-  return `${adj}${noun}${num}`;
-};
-
-const initialMessages: ChatMessageData[] = [
-  {
-    id: "1",
-    nickname: "MutigerInsider42",
-    message: "Hat jemand gesehen was am Hafen los war?",
-    timestamp: "14:23",
-  },
-  {
-    id: "2",
-    nickname: "StilleBeobachter7",
-    message: "Ja, da war Polizei und Feuerwehr. Anscheinend ein Unfall.",
-    timestamp: "14:25",
-  },
-  {
-    id: "3",
-    nickname: "AnonymerStader99",
-    message: "Weiß jemand ob der Weihnachtsmarkt dieses Jahr wieder am Pferdemarkt ist?",
-    timestamp: "14:28",
-  },
-  {
-    id: "4",
-    nickname: "GeheimeBotschafterin",
-    message: "Ja, startet nächste Woche Montag! 🎄",
-    timestamp: "14:30",
-  },
-];
+import { fetchChatMessages, sendChatMessage, deleteChatMessage } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { generateNickname, useAnonymousId } from "@/hooks/useAnonymousId";
+import { supabase } from "@/integrations/supabase/client";
 
 const ChatPage = () => {
   const { toast } = useToast();
+  const { user, isAdmin } = useAuth();
+  const { anonymousId } = useAnonymousId();
   const [isLoading, setIsLoading] = useState(true);
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [myNickname] = useState(generateNickname());
-  const [onlineCount] = useState(Math.floor(Math.random() * 20) + 5);
+  const [onlineCount, setOnlineCount] = useState(0);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Load messages and set up realtime subscription
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setMessages(initialMessages);
-      setIsLoading(false);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
+    const loadMessages = async () => {
+      try {
+        const data = await fetchChatMessages();
+        const formattedMessages: ChatMessageData[] = data.map((msg) => ({
+          id: msg.id,
+          nickname: msg.nickname,
+          message: msg.content,
+          timestamp: new Date(msg.created_at).toLocaleTimeString("de-DE", { 
+            hour: "2-digit", 
+            minute: "2-digit" 
+          }),
+          isOwn: msg.user_id === user?.id || (msg.is_anonymous && msg.nickname === myNickname),
+        }));
+        setMessages(formattedMessages);
+      } catch (error) {
+        console.error('Error loading messages:', error);
+        toast({
+          title: "Fehler",
+          description: "Nachrichten konnten nicht geladen werden.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadMessages();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('chat-messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages'
+        },
+        (payload) => {
+          const newMsg = payload.new as {
+            id: string;
+            nickname: string;
+            content: string;
+            created_at: string;
+            user_id: string | null;
+            is_anonymous: boolean;
+          };
+          
+          const formattedMsg: ChatMessageData = {
+            id: newMsg.id,
+            nickname: newMsg.nickname,
+            message: newMsg.content,
+            timestamp: new Date(newMsg.created_at).toLocaleTimeString("de-DE", { 
+              hour: "2-digit", 
+              minute: "2-digit" 
+            }),
+            isOwn: newMsg.user_id === user?.id || (newMsg.is_anonymous && newMsg.nickname === myNickname),
+          };
+          
+          setMessages((prev) => [...prev, formattedMsg]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'chat_messages'
+        },
+        (payload) => {
+          const updatedMsg = payload.new as { id: string; is_deleted: boolean };
+          if (updatedMsg.is_deleted) {
+            setMessages((prev) => prev.filter((msg) => msg.id !== updatedMsg.id));
+          }
+        }
+      )
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        setOnlineCount(Object.keys(state).length);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ user_id: user?.id || anonymousId });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, myNickname, anonymousId, toast]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!newMessage.trim()) return;
 
-    const message: ChatMessageData = {
-      id: Date.now().toString(),
-      nickname: myNickname,
-      message: newMessage.trim(),
-      timestamp: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-      isOwn: true,
-    };
+    // If not logged in, show auth modal
+    if (!user) {
+      setPendingMessage(newMessage);
+      setShowAuthModal(true);
+      return;
+    }
 
-    setMessages((prev) => [...prev, message]);
-    setNewMessage("");
+    await sendMessageToDatabase(newMessage, false);
+  };
+
+  const sendMessageToDatabase = async (content: string, asAnonymous: boolean) => {
+    try {
+      await sendChatMessage({
+        content: content.trim(),
+        nickname: myNickname,
+        user_id: asAnonymous ? undefined : user?.id,
+        is_anonymous: asAnonymous || !user,
+      });
+      setNewMessage("");
+      setPendingMessage("");
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Fehler",
+        description: "Nachricht konnte nicht gesendet werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAuthModalClose = (action?: 'login' | 'anonymous') => {
+    setShowAuthModal(false);
+    if (action === 'anonymous' && pendingMessage) {
+      sendMessageToDatabase(pendingMessage, true);
+    }
+    setPendingMessage("");
   };
 
   const handleReport = (id: string) => {
@@ -86,6 +168,25 @@ const ChatPage = () => {
       title: "Nachricht gemeldet",
       description: "Danke für dein Feedback. Wir prüfen die Nachricht.",
     });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!isAdmin) return;
+    
+    try {
+      await deleteChatMessage(id);
+      toast({
+        title: "Nachricht gelöscht",
+        description: "Die Nachricht wurde entfernt.",
+      });
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast({
+        title: "Fehler",
+        description: "Nachricht konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -100,7 +201,7 @@ const ChatPage = () => {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
             <Users className="w-4 h-4" />
-            <span>{onlineCount} online</span>
+            <span>{onlineCount > 0 ? onlineCount : 1} online</span>
           </div>
         </div>
 
@@ -149,6 +250,13 @@ const ChatPage = () => {
           </div>
         </form>
       </div>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => handleAuthModalClose()}
+        onContinueAnonymous={() => handleAuthModalClose('anonymous')}
+        showAnonymousOption={true}
+      />
     </MainLayout>
   );
 };
