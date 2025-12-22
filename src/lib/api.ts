@@ -57,16 +57,21 @@ export const fetchPublishedStories = async (categorySlug?: string): Promise<Stor
   return data as Story[];
 };
 
-export const fetchStoryById = async (id: string): Promise<Story | null> => {
-  const { data, error } = await supabase
+export const fetchStoryById = async (id: string, includeOwn?: boolean): Promise<Story | null> => {
+  let query = supabase
     .from('stories')
     .select(`
       *,
       category:categories(*)
     `)
-    .eq('id', id)
-    .eq('status', 'published')
-    .maybeSingle();
+    .eq('id', id);
+
+  // If not including own stories, filter to published only
+  if (!includeOwn) {
+    query = query.eq('status', 'published');
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) throw error;
   return data as Story | null;
