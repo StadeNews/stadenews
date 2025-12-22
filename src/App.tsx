@@ -10,6 +10,9 @@ import StoryPage from "./pages/StoryPage";
 import KategorienPage from "./pages/KategorienPage";
 import SendenPage from "./pages/SendenPage";
 import ChatPage from "./pages/ChatPage";
+import ChatGroupsPage from "./pages/ChatGroupsPage";
+import GroupChatPage from "./pages/GroupChatPage";
+import ProfilePage from "./pages/ProfilePage";
 import UeberUnsPage from "./pages/UeberUnsPage";
 import AdminPage from "./pages/AdminPage";
 import AuthPage from "./pages/AuthPage";
@@ -31,6 +34,9 @@ const App = () => (
             <Route path="/kategorien" element={<KategorienPage />} />
             <Route path="/senden" element={<SendenPage />} />
             <Route path="/chat" element={<ChatPage />} />
+            <Route path="/gruppen" element={<ChatGroupsPage />} />
+            <Route path="/gruppen/:id" element={<GroupChatPage />} />
+            <Route path="/profil" element={<ProfilePage />} />
             <Route path="/ueber-uns" element={<UeberUnsPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/auth" element={<AuthPage />} />

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { NewsCard } from "@/components/shared/NewsCard";
 import { NewsCardSkeleton } from "@/components/shared/SkeletonLoaders";
-import { Shield, Zap, Users, ChevronRight, Instagram } from "lucide-react";
+import { Shield, Zap, Users, ChevronRight, Instagram, Mail, Facebook } from "lucide-react";
 import { fetchPublishedStories, fetchCategories } from "@/lib/api";
 import { Story, Category } from "@/types/database";
 import stadeNewsLogo from "@/assets/stade-news-logo.png";
@@ -175,9 +175,9 @@ const HomePage = () => {
           <h2 className="font-display text-2xl font-bold mb-4">Folge uns auf Social Media</h2>
           <p className="text-muted-foreground mb-6">Für die neuesten KI-Videos und Story-Highlights</p>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
             <a
-              href="https://tiktok.com/@stadenews"
+              href="https://www.tiktok.com/@stadenews?_r=1&_t=ZG-92RWOTA5fVY"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 px-6 py-3 bg-secondary hover:bg-secondary/80 rounded-xl transition-all hover-lift w-full sm:w-auto justify-center"
@@ -185,17 +185,39 @@ const HomePage = () => {
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/>
               </svg>
-              <span className="font-medium">TikTok folgen</span>
+              <span className="font-medium">TikTok</span>
             </a>
             
             <a
-              href="https://instagram.com/stadenews"
+              href="https://www.instagram.com/stadenews?igsh=MWc5ZjNudHo1MmdxZA=="
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 rounded-xl transition-all hover-lift w-full sm:w-auto justify-center border border-purple-500/30"
             >
               <Instagram className="w-6 h-6 text-pink-400" />
-              <span className="font-medium">Instagram folgen</span>
+              <span className="font-medium">Instagram</span>
+            </a>
+
+            <a
+              href="https://www.facebook.com/share/1Wq2pNJ5oY/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-6 py-3 bg-blue-500/20 hover:bg-blue-500/30 rounded-xl transition-all hover-lift w-full sm:w-auto justify-center border border-blue-500/30"
+            >
+              <Facebook className="w-6 h-6 text-blue-400" />
+              <span className="font-medium">Facebook</span>
+            </a>
+          </div>
+
+          {/* Contact */}
+          <div className="pt-6 border-t border-border">
+            <p className="text-sm text-muted-foreground mb-2">Kontaktiere uns:</p>
+            <a 
+              href="mailto:Stade.news@web.de"
+              className="inline-flex items-center gap-2 text-primary hover:underline"
+            >
+              <Mail className="w-4 h-4" />
+              Stade.news@web.de
             </a>
           </div>
         </div>

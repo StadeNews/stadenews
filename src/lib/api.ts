@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Category, Story, Comment, Like, ChatMessage } from '@/types/database';
+import type { Category, Story, Comment, ChatMessage, ChatGroup, GroupMessage, Profile } from '@/types/database';
 
 // Categories
 export const fetchCategories = async (): Promise<Category[]> => {
@@ -246,4 +246,140 @@ export const fetchCategoryCounts = async (): Promise<Record<string, number>> => 
   });
 
   return counts;
+};
+
+// Update story (admin)
+export const updateStory = async (id: string, data: {
+  title?: string;
+  content?: string;
+  category_id?: string;
+  is_breaking?: boolean;
+}): Promise<void> => {
+  const { error } = await supabase
+    .from('stories')
+    .update(data)
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
+// Delete story (admin)
+export const deleteStory = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('stories')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
+// Chat Groups
+export const fetchChatGroups = async (): Promise<ChatGroup[]> => {
+  const { data, error } = await supabase
+    .from('chat_groups')
+    .select(`
+      *,
+      creator:profiles(username, avatar_url)
+    `)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as unknown as ChatGroup[];
+};
+
+export const createChatGroup = async (group: {
+  name: string;
+  description?: string;
+  creator_id: string;
+}): Promise<ChatGroup> => {
+  const { data, error } = await supabase
+    .from('chat_groups')
+    .insert(group)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data as ChatGroup;
+};
+
+export const fetchGroupMessages = async (groupId: string): Promise<GroupMessage[]> => {
+  const { data, error } = await supabase
+    .from('group_messages')
+    .select('*')
+    .eq('group_id', groupId)
+    .eq('is_deleted', false)
+    .order('created_at', { ascending: true })
+    .limit(100);
+
+  if (error) throw error;
+  return data as GroupMessage[];
+};
+
+export const sendGroupMessage = async (message: {
+  group_id: string;
+  content: string;
+  nickname: string;
+  user_id?: string;
+  is_anonymous: boolean;
+}): Promise<void> => {
+  const { error } = await supabase
+    .from('group_messages')
+    .insert(message);
+  
+  if (error) throw error;
+};
+
+// User profile with activity
+export const fetchUserProfile = async (userId: string): Promise<Profile | null> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as Profile | null;
+};
+
+export const fetchUserComments = async (userId: string): Promise<Comment[]> => {
+  const { data, error } = await supabase
+    .from('comments')
+    .select(`
+      *,
+      story:stories(id, title, content)
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) throw error;
+  return data as unknown as Comment[];
+};
+
+export const fetchUserStories = async (userId: string): Promise<Story[]> => {
+  const { data, error } = await supabase
+    .from('stories')
+    .select(`
+      *,
+      category:categories(*)
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) throw error;
+  return data as Story[];
+};
+
+export const updateUserProfile = async (userId: string, data: {
+  username?: string;
+  avatar_url?: string;
+}): Promise<void> => {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq('id', userId);
+  
+  if (error) throw error;
 };
