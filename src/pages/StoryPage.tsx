@@ -27,20 +27,28 @@ const StoryPage = () => {
   useEffect(() => {
     const loadData = async () => {
       if (!id) return;
+      setIsLoading(true);
+
       try {
-        // Pass true to include user's own stories (RLS will handle permissions)
-        const [storyData, commentsData] = await Promise.all([
-          fetchStoryById(id, !!user),
-          fetchComments(id)
-        ]);
+        // Include user's own stories (permissions handled by backend policies)
+        const storyData = await fetchStoryById(id, !!user);
         setStory(storyData);
-        setComments(commentsData);
+
+        try {
+          const commentsData = await fetchComments(id);
+          setComments(commentsData);
+        } catch (error) {
+          console.error('Error loading comments:', error);
+          setComments([]);
+        }
       } catch (error) {
         console.error('Error loading story:', error);
+        setStory(null);
       } finally {
         setIsLoading(false);
       }
     };
+
     loadData();
   }, [id, user]);
 

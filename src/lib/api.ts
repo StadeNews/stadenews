@@ -140,17 +140,36 @@ export const createBreakingNews = async (story: {
 
 // Comments
 export const fetchComments = async (storyId: string): Promise<Comment[]> => {
-  const { data, error } = await supabase
+  // NOTE: There is no FK relationship comments.user_id -> profiles.id, so we enrich manually.
+  const { data: comments, error } = await supabase
     .from('comments')
-    .select(`
-      *,
-      profile:profiles(username, avatar_url)
-    `)
+    .select('*')
     .eq('story_id', storyId)
     .order('created_at', { ascending: true });
 
   if (error) throw error;
-  return data as unknown as Comment[];
+
+  const userIds = Array.from(
+    new Set((comments ?? []).map((c) => c.user_id).filter(Boolean))
+  ) as string[];
+
+  if (userIds.length === 0) {
+    return (comments ?? []) as unknown as Comment[];
+  }
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id, username, avatar_url')
+    .in('id', userIds);
+
+  if (profilesError) throw profilesError;
+
+  const profileById = new Map((profiles ?? []).map((p) => [p.id, p] as const));
+
+  return (comments ?? []).map((c) => ({
+    ...(c as any),
+    profile: c.user_id ? (profileById.get(c.user_id) ?? null) : null,
+  })) as unknown as Comment[];
 };
 
 export const addComment = async (comment: {
