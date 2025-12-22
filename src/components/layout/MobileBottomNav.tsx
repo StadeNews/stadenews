@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Newspaper, Send, MessageCircle, Users, User, Shield } from "lucide-react";
+import { Home, Newspaper, Send, Heart, Users, User, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -10,9 +10,9 @@ export const MobileBottomNav = () => {
   const navItems = [
     { href: "/", icon: Home, label: "Home" },
     { href: "/news", icon: Newspaper, label: "News" },
+    { href: "/spotted", icon: Heart, label: "Spotted" },
     { href: "/senden", icon: Send, label: "Senden" },
-    { href: "/gruppen", icon: Users, label: "Gruppen" },
-    user ? { href: "/profil", icon: User, label: "Profil" } : { href: "/chat", icon: MessageCircle, label: "Chat" },
+    user ? { href: "/profil", icon: User, label: "Profil" } : { href: "/gruppen", icon: Users, label: "Gruppen" },
     ...(isAdmin ? [{ href: "/admin", icon: Shield, label: "Admin" }] : []),
   ];
 
