@@ -1,1 +1,4 @@
 project_id = "zqtiissmijuukkdzuejf"
+
+[functions.send-story-notification]
+verify_jwt = false

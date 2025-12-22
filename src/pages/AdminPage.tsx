@@ -18,7 +18,7 @@ import {
   Users,
   MessageSquare,
   Flag,
-  Eye
+  Instagram
 } from "lucide-react";
 import { 
   fetchAllStories, 
@@ -44,6 +44,11 @@ const AdminPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingStory, setEditingStory] = useState<Story | null>(null);
   const [editForm, setEditForm] = useState({ title: "", content: "" });
+  
+  // Rückfrage states
+  const [askingStory, setAskingStory] = useState<Story | null>(null);
+  const [questionMessage, setQuestionMessage] = useState("");
+  const [isSendingQuestion, setIsSendingQuestion] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -149,7 +154,7 @@ const AdminPage = () => {
   };
 
   const handleDownloadTxt = (story: Story) => {
-    const content = `Titel: ${story.title || 'Ohne Titel'}\n\nKategorie: ${story.category?.name || 'Unkategorisiert'}\n\nInhalt:\n${story.content}\n\n---\nEingereicht: ${new Date(story.created_at).toLocaleString('de-DE')}\nVon: ${story.anonymous_author || 'Unbekannt'}`;
+    const content = `Titel: ${story.title || 'Ohne Titel'}\n\nKategorie: ${story.category?.name || 'Unkategorisiert'}\n\nInhalt:\n${story.content}\n\n---\nEingereicht: ${new Date(story.created_at).toLocaleString('de-DE')}\nVon: ${story.anonymous_author || 'Unbekannt'}\nSocial Media geeignet: ${story.social_media_suitable ? 'Ja' : 'Nein'}\nCredits: ${story.credits_name || 'Keine'}`;
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -157,6 +162,29 @@ const AdminPage = () => {
     a.download = `story-${story.id.slice(0, 8)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleSendQuestion = async () => {
+    if (!askingStory || !questionMessage.trim()) return;
+    
+    setIsSendingQuestion(true);
+    try {
+      await supabase.from('admin_messages').insert({
+        story_id: askingStory.id,
+        user_id: askingStory.user_id,
+        anonymous_id: askingStory.anonymous_author,
+        admin_message: questionMessage.trim(),
+      });
+      
+      toast({ title: "Rückfrage gesendet!" });
+      setAskingStory(null);
+      setQuestionMessage("");
+    } catch (error) {
+      console.error('Error sending question:', error);
+      toast({ title: "Fehler", variant: "destructive" });
+    } finally {
+      setIsSendingQuestion(false);
+    }
   };
 
   const handleReportStatus = async (reportId: string, status: string) => {
@@ -236,30 +264,30 @@ const AdminPage = () => {
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="font-display text-3xl font-bold mb-2">Admin Dashboard</h1>
+            <h1 className="font-display text-3xl font-bold mb-2 text-foreground">Admin Dashboard</h1>
             <p className="text-muted-foreground">Verwalte Storys, Meldungen und Nutzer</p>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-4 gap-4 mb-8">
-            <div className="glass-card p-4 text-center">
+            <div className="bg-card border border-border rounded-xl p-4 text-center">
               <FileText className="w-6 h-6 mx-auto mb-2 text-primary" />
-              <p className="text-2xl font-bold">{stories.length}</p>
+              <p className="text-2xl font-bold text-foreground">{stories.length}</p>
               <p className="text-xs text-muted-foreground">Storys</p>
             </div>
-            <div className="glass-card p-4 text-center">
-              <Clock className="w-6 h-6 mx-auto mb-2 text-warning" />
-              <p className="text-2xl font-bold">{pendingCount}</p>
+            <div className="bg-card border border-border rounded-xl p-4 text-center">
+              <Clock className="w-6 h-6 mx-auto mb-2 text-yellow-500" />
+              <p className="text-2xl font-bold text-foreground">{pendingCount}</p>
               <p className="text-xs text-muted-foreground">Offen</p>
             </div>
-            <div className="glass-card p-4 text-center">
+            <div className="bg-card border border-border rounded-xl p-4 text-center">
               <Flag className="w-6 h-6 mx-auto mb-2 text-destructive" />
-              <p className="text-2xl font-bold">{pendingReports}</p>
+              <p className="text-2xl font-bold text-foreground">{pendingReports}</p>
               <p className="text-xs text-muted-foreground">Meldungen</p>
             </div>
-            <div className="glass-card p-4 text-center">
-              <Users className="w-6 h-6 mx-auto mb-2 text-success" />
-              <p className="text-2xl font-bold">{onlineUsers.length}</p>
+            <div className="bg-card border border-border rounded-xl p-4 text-center">
+              <Users className="w-6 h-6 mx-auto mb-2 text-green-500" />
+              <p className="text-2xl font-bold text-foreground">{onlineUsers.length}</p>
               <p className="text-xs text-muted-foreground">Online</p>
             </div>
           </div>
@@ -284,7 +312,7 @@ const AdminPage = () => {
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
                 {tab.badge && tab.badge > 0 && (
-                  <span className="ml-1 px-2 py-0.5 text-xs bg-warning/20 text-warning rounded-full">
+                  <span className="ml-1 px-2 py-0.5 text-xs bg-yellow-500/20 text-yellow-600 rounded-full">
                     {tab.badge}
                   </span>
                 )}
@@ -295,27 +323,61 @@ const AdminPage = () => {
           {/* Stories Tab */}
           {activeTab === "stories" && (
             <div className="space-y-4">
+              {/* Edit Modal */}
               {editingStory && (
-                <div className="glass-card p-4 border-2 border-primary">
-                  <h3 className="font-semibold mb-3">Story bearbeiten</h3>
+                <div className="bg-card border-2 border-primary rounded-xl p-4">
+                  <h3 className="font-semibold mb-3 text-foreground">Story bearbeiten</h3>
                   <input
                     type="text"
                     value={editForm.title}
                     onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
                     placeholder="Titel"
-                    className="w-full mb-2 px-3 py-2 bg-secondary border border-border rounded-lg"
+                    className="w-full mb-2 px-3 py-2 bg-secondary border border-border rounded-lg text-foreground"
                   />
                   <textarea
                     value={editForm.content}
                     onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
                     rows={4}
-                    className="w-full mb-3 px-3 py-2 bg-secondary border border-border rounded-lg resize-none"
+                    className="w-full mb-3 px-3 py-2 bg-secondary border border-border rounded-lg resize-none text-foreground"
                   />
                   <div className="flex gap-2">
                     <button onClick={handleSaveEdit} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg">
                       Speichern
                     </button>
-                    <button onClick={() => setEditingStory(null)} className="px-4 py-2 bg-secondary rounded-lg">
+                    <button onClick={() => setEditingStory(null)} className="px-4 py-2 bg-secondary text-foreground rounded-lg">
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Question Modal */}
+              {askingStory && (
+                <div className="bg-card border-2 border-blue-500 rounded-xl p-4">
+                  <h3 className="font-semibold mb-3 text-foreground flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-blue-500" />
+                    Rückfrage an Verfasser
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Story: {askingStory.title || askingStory.content.slice(0, 50) + '...'}
+                  </p>
+                  <textarea
+                    value={questionMessage}
+                    onChange={(e) => setQuestionMessage(e.target.value)}
+                    placeholder="Deine Rückfrage an den Verfasser..."
+                    rows={3}
+                    className="w-full mb-3 px-3 py-2 bg-secondary border border-border rounded-lg resize-none text-foreground"
+                  />
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={handleSendQuestion} 
+                      disabled={isSendingQuestion || !questionMessage.trim()}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg disabled:opacity-50"
+                    >
+                      {isSendingQuestion ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      Senden
+                    </button>
+                    <button onClick={() => { setAskingStory(null); setQuestionMessage(""); }} className="px-4 py-2 bg-secondary text-foreground rounded-lg">
                       Abbrechen
                     </button>
                   </div>
@@ -323,16 +385,16 @@ const AdminPage = () => {
               )}
 
               {stories.length === 0 ? (
-                <div className="glass-card p-8 text-center text-muted-foreground">
+                <div className="bg-card border border-border rounded-xl p-8 text-center text-muted-foreground">
                   Keine Storys vorhanden.
                 </div>
               ) : (
                 stories.map((story) => (
-                  <div key={story.id} className="glass-card p-4">
+                  <div key={story.id} className="bg-card border border-border rounded-xl p-4">
                     <div className="flex items-start justify-between gap-4 mb-3">
                       <div className="flex-1">
                         <div className="flex flex-wrap gap-2 mb-2">
-                          <span className="text-xs px-2 py-1 rounded-full bg-secondary">
+                          <span className="text-xs px-2 py-1 rounded-full bg-secondary text-foreground">
                             {story.category?.icon} {story.category?.name || 'Unkategorisiert'}
                           </span>
                           {story.is_breaking && (
@@ -340,14 +402,22 @@ const AdminPage = () => {
                               ⚡ Eilmeldung
                             </span>
                           )}
+                          {story.social_media_suitable && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-pink-500/20 text-pink-600 flex items-center gap-1">
+                              <Instagram className="w-3 h-3" /> Social Media
+                            </span>
+                          )}
                         </div>
-                        <h3 className="font-semibold">{story.title || 'Ohne Titel'}</h3>
+                        <h3 className="font-semibold text-foreground">{story.title || 'Ohne Titel'}</h3>
+                        {story.credits_name && (
+                          <p className="text-xs text-primary mt-1">Credits: {story.credits_name}</p>
+                        )}
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full flex-shrink-0 ${
                         story.status === "pending" 
-                          ? "bg-warning/20 text-warning"
+                          ? "bg-yellow-500/20 text-yellow-600"
                           : story.status === "published"
-                          ? "bg-success/20 text-success"
+                          ? "bg-green-500/20 text-green-600"
                           : "bg-destructive/20 text-destructive"
                       }`}>
                         {story.status === "pending" ? "Offen" : story.status === "published" ? "Veröffentlicht" : "Abgelehnt"}
@@ -373,6 +443,13 @@ const AdminPage = () => {
                           <Download className="w-3 h-3" />
                         </button>
                         <button
+                          onClick={() => setAskingStory(story)}
+                          className="flex items-center gap-1 px-2 py-1 bg-blue-500/20 text-blue-600 rounded text-xs hover:bg-blue-500/30"
+                          title="Rückfrage stellen"
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                        </button>
+                        <button
                           onClick={() => handleEdit(story)}
                           className="flex items-center gap-1 px-2 py-1 bg-secondary text-foreground rounded text-xs hover:bg-secondary/80"
                           title="Bearbeiten"
@@ -390,7 +467,7 @@ const AdminPage = () => {
                           <>
                             <button
                               onClick={() => handlePublish(story.id)}
-                              className="flex items-center gap-1 px-2 py-1 bg-success/20 text-success rounded text-xs hover:bg-success/30"
+                              className="flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-600 rounded text-xs hover:bg-green-500/30"
                             >
                               <Check className="w-3 h-3" /> OK
                             </button>
@@ -412,9 +489,9 @@ const AdminPage = () => {
 
           {/* Eilmeldung Tab */}
           {activeTab === "eilmeldung" && (
-            <form onSubmit={handleEilmeldung} className="glass-card p-6 space-y-4">
+            <form onSubmit={handleEilmeldung} className="bg-card border border-border rounded-xl p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Kategorie</label>
+                <label className="block text-sm font-medium mb-2 text-foreground">Kategorie</label>
                 <select
                   value={eilmeldung.category_id}
                   onChange={(e) => setEilmeldung({ ...eilmeldung, category_id: e.target.value })}
@@ -427,23 +504,23 @@ const AdminPage = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Titel</label>
+                <label className="block text-sm font-medium mb-2 text-foreground">Titel</label>
                 <input
                   type="text"
                   value={eilmeldung.title}
                   onChange={(e) => setEilmeldung({ ...eilmeldung, title: e.target.value })}
                   placeholder="Eilmeldung Titel..."
-                  className="w-full px-4 py-3 bg-secondary border border-border rounded-xl"
+                  className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Inhalt</label>
+                <label className="block text-sm font-medium mb-2 text-foreground">Inhalt</label>
                 <textarea
                   value={eilmeldung.content}
                   onChange={(e) => setEilmeldung({ ...eilmeldung, content: e.target.value })}
                   placeholder="Eilmeldung Text..."
                   rows={4}
-                  className="w-full px-4 py-3 bg-secondary border border-border rounded-xl resize-none"
+                  className="w-full px-4 py-3 bg-secondary border border-border rounded-xl resize-none text-foreground"
                 />
               </div>
               <button
@@ -461,25 +538,25 @@ const AdminPage = () => {
           {activeTab === "reports" && (
             <div className="space-y-4">
               {reports.length === 0 ? (
-                <div className="glass-card p-8 text-center text-muted-foreground">
+                <div className="bg-card border border-border rounded-xl p-8 text-center text-muted-foreground">
                   Keine Meldungen vorhanden.
                 </div>
               ) : (
                 reports.map((report) => (
-                  <div key={report.id} className="glass-card p-4">
+                  <div key={report.id} className="bg-card border border-border rounded-xl p-4">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div>
-                        <span className="text-xs px-2 py-1 bg-secondary rounded-full">
+                        <span className="text-xs px-2 py-1 bg-secondary rounded-full text-foreground">
                           {report.content_type}
                         </span>
-                        <p className="font-medium mt-2">{report.reason}</p>
+                        <p className="font-medium mt-2 text-foreground">{report.reason}</p>
                         {report.details && (
                           <p className="text-sm text-muted-foreground mt-1">{report.details}</p>
                         )}
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full ${
-                        report.status === 'pending' ? 'bg-warning/20 text-warning' :
-                        report.status === 'resolved' ? 'bg-success/20 text-success' :
+                        report.status === 'pending' ? 'bg-yellow-500/20 text-yellow-600' :
+                        report.status === 'resolved' ? 'bg-green-500/20 text-green-600' :
                         'bg-secondary text-muted-foreground'
                       }`}>
                         {report.status}
@@ -488,13 +565,13 @@ const AdminPage = () => {
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={() => handleReportStatus(report.id, 'resolved')}
-                        className="text-xs px-3 py-1 bg-success/20 text-success rounded hover:bg-success/30"
+                        className="text-xs px-3 py-1 bg-green-500/20 text-green-600 rounded hover:bg-green-500/30"
                       >
                         Erledigt
                       </button>
                       <button
                         onClick={() => handleReportStatus(report.id, 'dismissed')}
-                        className="text-xs px-3 py-1 bg-secondary rounded hover:bg-secondary/80"
+                        className="text-xs px-3 py-1 bg-secondary text-foreground rounded hover:bg-secondary/80"
                       >
                         Ablehnen
                       </button>
@@ -508,9 +585,9 @@ const AdminPage = () => {
           {/* Users Tab */}
           {activeTab === "users" && (
             <div className="space-y-4">
-              <div className="glass-card p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
+              <div className="bg-card border border-border rounded-xl p-4">
+                <h3 className="font-semibold mb-3 flex items-center gap-2 text-foreground">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                   Online Nutzer ({onlineUsers.length})
                 </h3>
                 {onlineUsers.length === 0 ? (
@@ -523,7 +600,7 @@ const AdminPage = () => {
                           <Users className="w-4 h-4 text-primary" />
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm font-medium">
+                          <p className="text-sm font-medium text-foreground">
                             {presence.user_id ? `User ${presence.user_id.slice(0, 8)}...` : `Anonym ${presence.anonymous_id?.slice(0, 8)}...`}
                           </p>
                           <p className="text-xs text-muted-foreground">
