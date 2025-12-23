@@ -15,7 +15,10 @@ import {
   Music,
   Camera,
   Play,
-  Pause
+  Pause,
+  Lock,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { 
   fetchUserProfile, 
@@ -48,6 +51,16 @@ const ProfilePage = () => {
   // Audio player
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  
+  // Password change states
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
   
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -261,6 +274,59 @@ const ProfilePage = () => {
         audioRef.current.play();
       }
       setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast({
+        title: "Fehler",
+        description: "Bitte fülle alle Felder aus.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: "Fehler",
+        description: "Das Passwort muss mindestens 6 Zeichen lang sein.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Fehler",
+        description: "Die Passwörter stimmen nicht überein.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      toast({ title: "Passwort erfolgreich geändert!" });
+      setIsChangingPassword(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      toast({
+        title: "Fehler",
+        description: error.message || "Passwort konnte nicht geändert werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -492,6 +558,95 @@ const ProfilePage = () => {
               <p className="text-xl font-bold text-foreground">{stories.length}</p>
               <p className="text-xs text-muted-foreground">Meldungen</p>
             </div>
+          </div>
+
+          {/* Password Change Section */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                <Lock className="w-4 h-4" />
+                Passwort
+              </label>
+              {!isChangingPassword && (
+                <button
+                  onClick={() => setIsChangingPassword(true)}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Passwort ändern
+                </button>
+              )}
+            </div>
+            {isChangingPassword ? (
+              <div className="space-y-3 bg-secondary/50 rounded-lg p-4">
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Neues Passwort"
+                    className="w-full px-3 py-2 pr-10 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Passwort bestätigen"
+                    className="w-full px-3 py-2 pr-10 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Mindestens 6 Zeichen
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setIsChangingPassword(false);
+                      setCurrentPassword("");
+                      setNewPassword("");
+                      setConfirmPassword("");
+                    }}
+                    className="flex-1 px-3 py-2 text-sm text-muted-foreground hover:text-foreground bg-background border border-border rounded-lg"
+                    disabled={passwordLoading}
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={passwordLoading}
+                    className="flex-1 px-3 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 flex items-center justify-center gap-2"
+                  >
+                    {passwordLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Speichern...
+                      </>
+                    ) : (
+                      'Speichern'
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground bg-secondary/50 rounded-lg p-3">
+                ••••••••
+              </p>
+            )}
           </div>
 
           <button
