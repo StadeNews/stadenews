@@ -5,8 +5,8 @@ import { ChatMessage, ChatMessageData } from "@/components/shared/ChatMessage";
 import { ChatMessageSkeleton } from "@/components/shared/SkeletonLoaders";
 import { ReportModal } from "@/components/shared/ReportModal";
 import { useToast } from "@/hooks/use-toast";
-import { Send, ArrowLeft, Users, Lock, Mail } from "lucide-react";
-import { fetchGroupMessages, sendGroupMessage, fetchChatGroups } from "@/lib/api";
+import { Send, ArrowLeft, Users, Lock, Mail, Trash2 } from "lucide-react";
+import { fetchGroupMessages, sendGroupMessage, fetchChatGroups, deleteGroupMessage } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { generateNickname, useAnonymousId } from "@/hooks/useAnonymousId";
@@ -182,6 +182,18 @@ const GroupChatPage = () => {
     setReportingMessageId(msgId);
   };
 
+  const handleDeleteMessage = async (msgId: string) => {
+    if (!isAdmin) return;
+    try {
+      await deleteGroupMessage(msgId);
+      setMessages(messages.filter(m => m.id !== msgId));
+      toast({ title: "Nachricht gelöscht" });
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast({ title: "Fehler beim Löschen", variant: "destructive" });
+    }
+  };
+
   if (!group && !isLoading) {
     return (
       <MainLayout>
@@ -266,11 +278,21 @@ const GroupChatPage = () => {
             </>
           ) : messages.length > 0 ? (
             messages.map((msg) => (
-              <ChatMessage
-                key={msg.id}
-                message={msg}
-                onReport={handleReport}
-              />
+              <div key={msg.id} className="relative group">
+                <ChatMessage
+                  message={msg}
+                  onReport={handleReport}
+                />
+                {isAdmin && (
+                  <button
+                    onClick={() => handleDeleteMessage(msg.id)}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 bg-destructive/90 text-destructive-foreground rounded-lg text-xs transition-opacity hover:bg-destructive"
+                    title="Nachricht löschen"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
             ))
           ) : (
             <div className="text-center py-12 text-muted-foreground">

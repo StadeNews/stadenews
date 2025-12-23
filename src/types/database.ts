@@ -28,6 +28,7 @@ export interface Story {
   content: string;
   status: 'pending' | 'published' | 'rejected';
   is_breaking: boolean;
+  is_verified?: boolean;
   likes_count: number;
   views_count: number;
   anonymous_author: string | null;

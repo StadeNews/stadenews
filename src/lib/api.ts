@@ -406,11 +406,21 @@ export const sendGroupMessage = async (message: {
   if (error) throw error;
 };
 
-// Delete group message (admin)
+// Delete group message (admin) - soft delete
 export const deleteGroupMessage = async (id: string): Promise<void> => {
   const { error } = await supabase
     .from('group_messages')
-    .delete()
+    .update({ is_deleted: true })
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
+// Mark story as unverified (admin)
+export const markStoryUnverified = async (id: string, isVerified: boolean): Promise<void> => {
+  const { error } = await supabase
+    .from('stories')
+    .update({ is_verified: isVerified })
     .eq('id', id);
   
   if (error) throw error;
