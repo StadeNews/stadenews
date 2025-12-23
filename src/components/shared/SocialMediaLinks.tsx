@@ -23,9 +23,9 @@ const validateUrl = (url: string, platform: 'instagram' | 'facebook' | 'tiktok')
   if (!url.trim()) return true; // Empty is valid (for removal)
   
   const patterns: Record<string, RegExp> = {
-    instagram: /^(https?:\/\/)?(www\.)?instagram\.com\/[a-zA-Z0-9._]+\/?$/,
-    facebook: /^(https?:\/\/)?(www\.)?(facebook\.com|fb\.com)\/[a-zA-Z0-9.]+\/?$/,
-    tiktok: /^(https?:\/\/)?(www\.)?tiktok\.com\/@[a-zA-Z0-9._]+\/?$/,
+    instagram: /^(https?:\/\/)?(www\.)?instagram\.com\/[a-zA-Z0-9._]+\/?(\?.*)?$/,
+    facebook: /^(https?:\/\/)?(www\.)?(facebook\.com|fb\.com)\/.+$/,
+    tiktok: /^(https?:\/\/)?(www\.)?tiktok\.com\/@[a-zA-Z0-9._]+\/?(\?.*)?$/,
   };
   
   return patterns[platform].test(url);
