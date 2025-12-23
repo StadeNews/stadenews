@@ -13,6 +13,7 @@ import { generateNickname, useAnonymousId } from "@/hooks/useAnonymousId";
 import { useAnonymousPreference } from "@/hooks/useAnonymousPreference";
 import { supabase } from "@/integrations/supabase/client";
 import type { ChatGroup } from "@/types/database";
+import { checkMultipleAdminRoles } from "@/hooks/useUserRole";
 
 interface ExtendedChatGroup extends ChatGroup {
   is_closed?: boolean;
@@ -34,6 +35,7 @@ const GroupChatPage = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingMessage, setPendingMessage] = useState("");
   const [reportingMessageId, setReportingMessageId] = useState<string | null>(null);
+  const [adminUserIds, setAdminUserIds] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,6 +48,21 @@ const GroupChatPage = () => {
         setGroup(foundGroup || null);
 
         const messagesData = await fetchGroupMessages(id);
+        
+        // Check which users are admins
+        const userIds = messagesData
+          .map(msg => msg.user_id)
+          .filter((uid): uid is string => uid !== null);
+        
+        if (userIds.length > 0) {
+          const adminMap = await checkMultipleAdminRoles(userIds);
+          const adminSet = new Set<string>();
+          adminMap.forEach((isAdmin, uid) => {
+            if (isAdmin) adminSet.add(uid);
+          });
+          setAdminUserIds(adminSet);
+        }
+        
         const formattedMessages: ChatMessageData[] = messagesData.map((msg) => ({
           id: msg.id,
           nickname: msg.nickname,
@@ -55,6 +72,7 @@ const GroupChatPage = () => {
             minute: "2-digit" 
           }),
           isOwn: msg.user_id === user?.id || (msg.is_anonymous && msg.nickname === myNickname),
+          isAdmin: msg.user_id ? adminUserIds.has(msg.user_id) : false,
         }));
         setMessages(formattedMessages);
       } catch (error) {
@@ -101,6 +119,7 @@ const GroupChatPage = () => {
               minute: "2-digit" 
             }),
             isOwn: newMsg.user_id === user?.id || (newMsg.is_anonymous && newMsg.nickname === myNickname),
+            isAdmin: newMsg.user_id ? adminUserIds.has(newMsg.user_id) : false,
           };
           
           setMessages((prev) => [...prev, formattedMsg]);
@@ -119,7 +138,7 @@ const GroupChatPage = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id, user?.id, myNickname, anonymousId, toast]);
+  }, [id, user?.id, myNickname, anonymousId, toast, adminUserIds]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -22,7 +22,8 @@ import {
   Mail,
   Shield,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Star
 } from "lucide-react";
 import { 
   fetchUserProfile, 
@@ -31,6 +32,7 @@ import {
   updateUserProfile
 } from "@/lib/api";
 import type { Profile, Comment, Story } from "@/types/database";
+import { AdminCrown, UserBadge } from "@/components/shared/UserBadge";
 
 interface ExtendedProfile extends Profile {
   is_private?: boolean;
@@ -45,6 +47,8 @@ const ProfilePage = () => {
   const [stories, setStories] = useState<Story[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"comments" | "stories">("comments");
+  const [badgeLevel, setBadgeLevel] = useState<number>(0);
+  const { isAdmin } = useAuth();
   
   // Editing states
   const [isEditingUsername, setIsEditingUsername] = useState(false);
@@ -148,6 +152,18 @@ const ProfilePage = () => {
 
       setComments(commentsData);
       setStories(storiesData);
+      
+      // Fetch user badge
+      const { data: badgeData } = await supabase
+        .from('user_badges')
+        .select('badge_level')
+        .eq('user_id', user.id)
+        .eq('badge_type', 'commenter')
+        .maybeSingle();
+      
+      if (badgeData) {
+        setBadgeLevel(badgeData.badge_level);
+      }
     } catch (error) {
       console.error("Error loading profile:", error);
       toast({
@@ -579,10 +595,14 @@ const ProfilePage = () => {
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 mb-1">
-                  <h1 className="font-display text-2xl font-bold text-foreground">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h1 className="font-display text-xl md:text-2xl font-bold text-foreground">
                     {profile?.username || user.email?.split('@')[0]}
                   </h1>
+                  {isAdmin && <AdminCrown size="md" />}
+                  {badgeLevel > 0 && (
+                    <UserBadge type="commenter" level={badgeLevel} size="md" showLabel />
+                  )}
                   <button
                     onClick={() => setIsEditingUsername(true)}
                     className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
