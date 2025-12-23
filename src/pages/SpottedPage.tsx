@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { SpottedCard } from '@/components/spotted/SpottedCard';
@@ -10,20 +10,31 @@ import { useAnonymousPreference } from '@/hooks/useAnonymousPreference';
 import { useToast } from '@/hooks/use-toast';
 import { fetchSpottedPosts, createSpottedPost } from '@/lib/spotted-api';
 import { generateNickname } from '@/hooks/useAnonymousId';
-import { Plus, Heart, MapPin, Calendar, Clock, X, Loader2, Search, Filter } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Plus, Heart, MapPin, Calendar, Clock, X, Loader2, Search, Filter, Image, Video, AlertCircle } from 'lucide-react';
 import type { Spotted } from '@/types/spotted';
+
+interface MediaFile {
+  id: string;
+  url: string;
+  type: 'image' | 'video';
+  description: string;
+}
 
 const SpottedPage = () => {
   const { user } = useAuth();
   const { anonymousId } = useAnonymousId();
   const { preferAnonymous, savePreference } = useAnonymousPreference();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [posts, setPosts] = useState<Spotted[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [form, setForm] = useState({
     title: '',
     content: '',
@@ -89,11 +100,87 @@ const SpottedPage = () => {
     }
   };
 
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (mediaFiles.length + files.length > 5) {
+      toast({ title: "Zu viele Dateien", description: "Maximal 5 Bilder/Videos erlaubt.", variant: "destructive" });
+      return;
+    }
+
+    setIsUploadingMedia(true);
+
+    try {
+      for (const file of Array.from(files)) {
+        const isImage = file.type.startsWith('image/');
+        const isVideo = file.type.startsWith('video/');
+        
+        if (!isImage && !isVideo) {
+          toast({ title: "Fehler", description: `${file.name}: Nur Bilder und Videos erlaubt.`, variant: "destructive" });
+          continue;
+        }
+
+        const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+          toast({ title: "Datei zu groß", description: `${file.name}: Max ${isVideo ? '50MB' : '10MB'}.`, variant: "destructive" });
+          continue;
+        }
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `spotted/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('story-media')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('story-media')
+          .getPublicUrl(filePath);
+
+        setMediaFiles(prev => [...prev, {
+          id: fileName,
+          url: publicUrl,
+          type: isImage ? 'image' : 'video',
+          description: ''
+        }]);
+      }
+    } catch (error) {
+      console.error('Error uploading media:', error);
+      toast({ title: "Upload fehlgeschlagen", variant: "destructive" });
+    } finally {
+      setIsUploadingMedia(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleRemoveMedia = (mediaId: string) => {
+    setMediaFiles(prev => prev.filter(m => m.id !== mediaId));
+  };
+
+  const handleUpdateMediaDescription = (mediaId: string, description: string) => {
+    setMediaFiles(prev => prev.map(m => 
+      m.id === mediaId ? { ...m, description } : m
+    ));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!form.title.trim() || !form.content.trim()) {
       toast({ title: "Fehler", description: "Titel und Beschreibung sind erforderlich.", variant: "destructive" });
+      return;
+    }
+
+    // Check media descriptions
+    const missingDescriptions = mediaFiles.filter(m => !m.description.trim());
+    if (missingDescriptions.length > 0) {
+      toast({ title: "Beschreibung fehlt", description: "Bitte beschreibe alle hochgeladenen Medien.", variant: "destructive" });
       return;
     }
 
@@ -108,12 +195,21 @@ const SpottedPage = () => {
         spotted_date: form.spotted_date || undefined,
         spotted_time: form.spotted_time || undefined,
         user_id: isAnonymous ? undefined : user?.id,
-        anonymous_author: isAnonymous ? generateNickname() : undefined
+        anonymous_author: isAnonymous ? generateNickname() : undefined,
+        media_files: mediaFiles.length > 0 ? mediaFiles.map(m => ({
+          url: m.url,
+          type: m.type,
+          description: m.description
+        })) : undefined
       });
 
-      toast({ title: "Spotted gepostet!" });
+      toast({ 
+        title: "Spotted gepostet!", 
+        description: mediaFiles.length > 0 ? "Medien werden separat geprüft." : undefined
+      });
       setShowCreateModal(false);
       setForm({ title: '', content: '', location: '', spotted_date: '', spotted_time: '' });
+      setMediaFiles([]);
       loadPosts();
     } catch (error) {
       console.error('Error creating spotted:', error);
@@ -351,6 +447,78 @@ const SpottedPage = () => {
                   className="input-field"
                   maxLength={20}
                 />
+              </div>
+
+              {/* Media Upload */}
+              <div>
+                <label className="block text-sm font-medium mb-2 flex items-center gap-1">
+                  <Image className="w-4 h-4" /> Fotos/Videos (optional, max. 5)
+                </label>
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleMediaUpload}
+                  disabled={isUploadingMedia || mediaFiles.length >= 5}
+                  className="hidden"
+                  id="spotted-media-upload"
+                  multiple
+                />
+                <label
+                  htmlFor="spotted-media-upload"
+                  className={`flex items-center justify-center gap-2 w-full px-4 py-3 bg-secondary border-2 border-dashed border-border rounded-xl cursor-pointer hover:bg-secondary/80 hover:border-pink-500/50 transition-all ${isUploadingMedia || mediaFiles.length >= 5 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {isUploadingMedia ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin text-pink-500" />
+                      <span className="text-muted-foreground">Wird hochgeladen...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Image className="w-5 h-5 text-muted-foreground" />
+                      <Video className="w-5 h-5 text-muted-foreground" />
+                      <span className="text-muted-foreground">
+                        {mediaFiles.length > 0 ? 'Weitere hinzufügen' : 'Foto/Video hochladen'}
+                      </span>
+                    </>
+                  )}
+                </label>
+
+                {/* Media Preview */}
+                {mediaFiles.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {mediaFiles.map((media) => (
+                      <div key={media.id} className="flex gap-2 p-2 bg-secondary/50 rounded-lg border border-border">
+                        <div className="relative w-16 h-16 flex-shrink-0 rounded overflow-hidden">
+                          {media.type === 'image' ? (
+                            <img src={media.url} alt="Vorschau" className="w-full h-full object-cover" />
+                          ) : (
+                            <video src={media.url} className="w-full h-full object-cover" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMedia(media.id)}
+                            className="absolute top-0.5 right-0.5 p-0.5 bg-black/70 rounded-full"
+                          >
+                            <X className="w-3 h-3 text-white" />
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={media.description}
+                          onChange={(e) => handleUpdateMediaDescription(media.id, e.target.value)}
+                          placeholder="Was ist zu sehen?"
+                          className="flex-1 px-2 py-1 bg-secondary border border-border rounded text-sm"
+                        />
+                      </div>
+                    ))}
+                    <p className="text-xs text-amber-400 flex items-start gap-1">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                      Medien werden von Admins separat geprüft.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <button

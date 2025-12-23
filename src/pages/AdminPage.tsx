@@ -249,15 +249,34 @@ const AdminPage = () => {
     }
   };
 
-  const handleMediaStatus = async (storyId: string, status: 'approved' | 'rejected') => {
+  // Media rejection state
+  const [rejectingMediaId, setRejectingMediaId] = useState<{ storyId: string; mediaId?: string } | null>(null);
+  const [mediaRejectionReason, setMediaRejectionReason] = useState("");
+
+  const handleMediaStatus = async (storyId: string, status: 'approved' | 'rejected', mediaId?: string, rejectionReason?: string) => {
     try {
-      await supabase
-        .from('stories')
-        .update({ media_status: status })
-        .eq('id', storyId);
+      if (mediaId) {
+        // Update story_media table for new multi-media
+        await supabase
+          .from('story_media')
+          .update({ 
+            media_status: status,
+            rejection_reason: status === 'rejected' ? rejectionReason : null 
+          })
+          .eq('id', mediaId);
+      } else {
+        // Legacy: update stories table directly
+        await supabase
+          .from('stories')
+          .update({ media_status: status })
+          .eq('id', storyId);
+      }
+      
       setStories(stories.map(s => 
         s.id === storyId ? { ...s, media_status: status } : s
       ));
+      setRejectingMediaId(null);
+      setMediaRejectionReason("");
       toast({ title: status === 'approved' ? "Medien genehmigt" : "Medien abgelehnt" });
     } catch (error) {
       console.error('Error updating media status:', error);
@@ -633,11 +652,42 @@ const AdminPage = () => {
                               <Check className="w-3 h-3" /> Medien OK
                             </button>
                             <button
-                              onClick={() => handleMediaStatus(story.id, 'rejected')}
+                              onClick={() => setRejectingMediaId({ storyId: story.id })}
                               className="flex items-center gap-1 px-3 py-1 bg-destructive/20 text-destructive rounded text-xs hover:bg-destructive/30"
                             >
-                              <X className="w-3 h-3" /> Medien ablehnen
+                              <X className="w-3 h-3" /> Ablehnen mit Grund
                             </button>
+                          </div>
+                        )}
+
+                        {/* Rejection Reason Input */}
+                        {rejectingMediaId?.storyId === story.id && !rejectingMediaId?.mediaId && (
+                          <div className="mt-3 p-3 bg-destructive/10 rounded-lg border border-destructive/30">
+                            <label className="block text-xs font-medium text-destructive mb-2">
+                              Ablehnungsgrund:
+                            </label>
+                            <input
+                              type="text"
+                              value={mediaRejectionReason}
+                              onChange={(e) => setMediaRejectionReason(e.target.value)}
+                              placeholder="Grund für die Ablehnung..."
+                              className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm"
+                            />
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                onClick={() => handleMediaStatus(story.id, 'rejected', undefined, mediaRejectionReason)}
+                                disabled={!mediaRejectionReason.trim()}
+                                className="px-3 py-1 bg-destructive text-destructive-foreground rounded text-xs disabled:opacity-50"
+                              >
+                                Ablehnen
+                              </button>
+                              <button
+                                onClick={() => { setRejectingMediaId(null); setMediaRejectionReason(""); }}
+                                className="px-3 py-1 bg-secondary rounded text-xs"
+                              >
+                                Abbrechen
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -752,12 +802,14 @@ const AdminPage = () => {
           {/* Reports Tab */}
           {activeTab === "reports" && (
             <div className="space-y-4">
-              {reports.length === 0 ? (
+              {reports.filter(r => r.content_type !== 'chat_message' && r.content_type !== 'group_message').length === 0 ? (
                 <div className="bg-card border border-border rounded-xl p-8 text-center text-muted-foreground">
                   Keine Meldungen vorhanden.
                 </div>
               ) : (
-                reports.map((report) => (
+                reports
+                  .filter(r => r.content_type !== 'chat_message' && r.content_type !== 'group_message')
+                  .map((report) => (
                   <div key={report.id} className="bg-card border border-border rounded-xl p-4">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div>

@@ -86,12 +86,32 @@ export const createSpottedPost = async (post: {
   spotted_time?: string;
   user_id?: string;
   anonymous_author?: string;
-}): Promise<void> => {
-  const { error } = await supabase
+  media_files?: { url: string; type: 'image' | 'video'; description: string }[];
+}): Promise<string> => {
+  const { media_files, ...postData } = post;
+  
+  const { data, error } = await supabase
     .from('spotted')
-    .insert(post);
+    .insert(postData)
+    .select('id')
+    .single();
 
   if (error) throw error;
+
+  // Insert media files if any
+  if (media_files && media_files.length > 0 && data) {
+    const mediaInserts = media_files.map(m => ({
+      spotted_id: data.id,
+      media_url: m.url,
+      media_type: m.type,
+      media_description: m.description,
+      media_status: 'pending' as const,
+    }));
+
+    await supabase.from('spotted_media').insert(mediaInserts);
+  }
+
+  return data.id;
 };
 
 // Delete spotted post (admin only)
