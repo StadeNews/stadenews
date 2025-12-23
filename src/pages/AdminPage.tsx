@@ -24,7 +24,9 @@ import {
   Unlock,
   MessageCircle,
   Image,
-  Video
+  Video,
+  ShieldAlert,
+  ShieldCheck
 } from "lucide-react";
 import { 
   fetchAllStories, 
@@ -36,7 +38,8 @@ import {
   fetchChatGroups,
   deleteChatGroup,
   fetchGroupMessages,
-  deleteGroupMessage
+  deleteGroupMessage,
+  markStoryUnverified
 } from "@/lib/api";
 import type { Story, Category, Report, UserPresence, ChatGroup, GroupMessage } from "@/types/database";
 
@@ -280,6 +283,20 @@ const AdminPage = () => {
       toast({ title: status === 'approved' ? "Medien genehmigt" : "Medien abgelehnt" });
     } catch (error) {
       console.error('Error updating media status:', error);
+      toast({ title: "Fehler", variant: "destructive" });
+    }
+  };
+
+  const handleToggleVerified = async (storyId: string, currentlyVerified: boolean | undefined) => {
+    try {
+      const newVerifiedStatus = !currentlyVerified;
+      await markStoryUnverified(storyId, newVerifiedStatus);
+      setStories(stories.map(s => 
+        s.id === storyId ? { ...s, is_verified: newVerifiedStatus } : s
+      ));
+      toast({ title: newVerifiedStatus ? "Als verifiziert markiert" : "Als nicht offiziell geprüft markiert" });
+    } catch (error) {
+      console.error('Error toggling verified status:', error);
       toast({ title: "Fehler", variant: "destructive" });
     }
   };
@@ -588,6 +605,11 @@ const AdminPage = () => {
                               <Instagram className="w-3 h-3" /> Social Media
                             </span>
                           )}
+                          {story.is_verified === false && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-orange-500/20 text-orange-600 flex items-center gap-1">
+                              ⚠️ Nicht offiziell geprüft
+                            </span>
+                          )}
                         </div>
                         <h3 className="font-semibold text-foreground">{story.title || 'Ohne Titel'}</h3>
                         {story.credits_name && (
@@ -743,6 +765,23 @@ const AdminPage = () => {
                               <X className="w-3 h-3" /> Nein
                             </button>
                           </>
+                        )}
+                        {story.status === "published" && (
+                          <button
+                            onClick={() => handleToggleVerified(story.id, story.is_verified)}
+                            className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
+                              story.is_verified === false 
+                                ? 'bg-green-500/20 text-green-600 hover:bg-green-500/30' 
+                                : 'bg-orange-500/20 text-orange-600 hover:bg-orange-500/30'
+                            }`}
+                            title={story.is_verified === false ? "Als verifiziert markieren" : "Als nicht offiziell geprüft markieren"}
+                          >
+                            {story.is_verified === false ? (
+                              <><ShieldCheck className="w-3 h-3" /> Verifizieren</>
+                            ) : (
+                              <><ShieldAlert className="w-3 h-3" /> Nicht geprüft</>
+                            )}
+                          </button>
                         )}
                       </div>
                     </div>

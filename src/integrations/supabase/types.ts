@@ -680,6 +680,7 @@ export type Database = {
           credits_name: string | null
           id: string
           is_breaking: boolean | null
+          is_verified: boolean | null
           likes_count: number | null
           media_description: string | null
           media_status: string | null
@@ -700,6 +701,7 @@ export type Database = {
           credits_name?: string | null
           id?: string
           is_breaking?: boolean | null
+          is_verified?: boolean | null
           likes_count?: number | null
           media_description?: string | null
           media_status?: string | null
@@ -720,6 +722,7 @@ export type Database = {
           credits_name?: string | null
           id?: string
           is_breaking?: boolean | null
+          is_verified?: boolean | null
           likes_count?: number | null
           media_description?: string | null
           media_status?: string | null
