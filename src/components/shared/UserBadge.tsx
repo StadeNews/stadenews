@@ -1,7 +1,7 @@
-import { Crown, Star, Award } from "lucide-react";
+import { Crown, Star, FileText, Heart, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type BadgeType = 'admin' | 'commenter';
+export type BadgeType = 'admin' | 'commenter' | 'storyteller' | 'popular';
 
 interface BadgeLevel {
   level: number;
@@ -10,13 +10,19 @@ interface BadgeLevel {
   bgColor: string;
 }
 
-const COMMENTER_BADGES: BadgeLevel[] = [
+const BADGE_LEVELS: BadgeLevel[] = [
   { level: 1, name: 'Bronze', color: 'text-amber-700', bgColor: 'bg-amber-100' },
   { level: 2, name: 'Silber', color: 'text-slate-500', bgColor: 'bg-slate-100' },
   { level: 3, name: 'Gold', color: 'text-yellow-500', bgColor: 'bg-yellow-100' },
   { level: 4, name: 'Platin', color: 'text-purple-500', bgColor: 'bg-purple-100' },
   { level: 5, name: 'Diamant', color: 'text-cyan-500', bgColor: 'bg-cyan-100' },
 ];
+
+const BADGE_ICONS: Record<string, typeof Star> = {
+  commenter: Star,
+  storyteller: FileText,
+  popular: Heart,
+};
 
 interface UserBadgeProps {
   type: BadgeType;
@@ -58,28 +64,27 @@ export const UserBadge = ({ type, level = 1, size = 'sm', showLabel = false, cla
     );
   }
 
-  if (type === 'commenter') {
-    const badge = COMMENTER_BADGES.find(b => b.level === level) || COMMENTER_BADGES[0];
-    return (
+  // Handle commenter, storyteller, popular badges
+  const Icon = BADGE_ICONS[type] || Star;
+  const badge = BADGE_LEVELS.find(b => b.level === level) || BADGE_LEVELS[0];
+  
+  return (
+    <div className={cn(
+      "inline-flex items-center gap-1",
+      className
+    )}>
       <div className={cn(
-        "inline-flex items-center gap-1",
-        className
+        containerSizeClasses[size],
+        "rounded-full flex items-center justify-center shadow-sm",
+        badge.bgColor
       )}>
-        <div className={cn(
-          containerSizeClasses[size],
-          "rounded-full flex items-center justify-center shadow-sm",
-          badge.bgColor
-        )}>
-          <Star className={cn(sizeClasses[size], badge.color, "fill-current")} />
-        </div>
-        {showLabel && (
-          <span className={cn("text-xs font-medium", badge.color)}>{badge.name}</span>
-        )}
+        <Icon className={cn(sizeClasses[size], badge.color, "fill-current")} />
       </div>
-    );
-  }
-
-  return null;
+      {showLabel && (
+        <span className={cn("text-xs font-medium", badge.color)}>{badge.name}</span>
+      )}
+    </div>
+  );
 };
 
 // Admin Crown Icon - standalone version
@@ -89,5 +94,8 @@ export const AdminCrown = ({ size = 'sm', className }: { size?: 'sm' | 'md' | 'l
 
 // Hook to get badge info
 export const getBadgeInfo = (level: number) => {
-  return COMMENTER_BADGES.find(b => b.level === level) || null;
+  return BADGE_LEVELS.find(b => b.level === level) || null;
 };
+
+// Export badge levels for use in other components
+export const BADGE_LEVEL_INFO = BADGE_LEVELS;

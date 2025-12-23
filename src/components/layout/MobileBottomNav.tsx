@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Newspaper, Send, Heart, Users, User, Shield, Activity, MoreHorizontal, X } from "lucide-react";
+import { Home, Newspaper, Send, Heart, Users, User, Shield, Activity, MoreHorizontal, X, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -21,6 +21,7 @@ export const MobileBottomNav = () => {
   const moreItems = [
     { href: "/gruppen", icon: Users, label: "Gruppen" },
     { href: "/status", icon: Activity, label: "Status" },
+    { href: "/leaderboard", icon: Trophy, label: "Rangliste" },
     ...(user ? [{ href: "/profil", icon: User, label: "Profil" }] : []),
     ...(isAdmin ? [{ href: "/admin", icon: Shield, label: "Admin" }] : []),
   ];

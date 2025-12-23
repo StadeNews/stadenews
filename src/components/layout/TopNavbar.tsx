@@ -11,8 +11,10 @@ const navLinks = [
   { href: "/", label: "Home" },
   { href: "/news", label: "News" },
   { href: "/spotted", label: "Spotted" },
+  { href: "/gruppen", label: "Gruppen" },
   { href: "/kategorien", label: "Kategorien" },
-  { href: "/ueber-uns", label: "Über uns" },
+  { href: "/status", label: "Status" },
+  { href: "/leaderboard", label: "Rangliste" },
 ];
 
 export const TopNavbar = () => {
