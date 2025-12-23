@@ -30,7 +30,8 @@ import {
   Crown,
   UserCheck,
   UserX,
-  BarChart3
+  BarChart3,
+  ShieldPlus
 } from "lucide-react";
 import { 
   fetchAllStories, 
@@ -371,6 +372,52 @@ const AdminPage = () => {
       toast({ 
         title: "Fehler beim Löschen", 
         description: "Account konnte nicht gelöscht werden.",
+        variant: "destructive" 
+      });
+    }
+  };
+
+  const handleMakeAdmin = async (userId: string, username: string | null) => {
+    if (!confirm(`"${username || 'Unbekannt'}" wirklich zum Admin machen?`)) return;
+    
+    try {
+      const { error } = await supabase.rpc('admin_make_admin', { _user_id: userId });
+      
+      if (error) throw error;
+      
+      setAllUsers(allUsers.map(u => 
+        u.id === userId ? { ...u, role: 'admin' } : u
+      ));
+      toast({ title: "Admin-Rolle vergeben" });
+    } catch (error) {
+      console.error('Error making admin:', error);
+      toast({ 
+        title: "Fehler", 
+        description: "Admin-Rolle konnte nicht vergeben werden.",
+        variant: "destructive" 
+      });
+    }
+  };
+
+  const handleRemoveAdmin = async (userId: string, username: string | null) => {
+    if (!confirm(`Admin-Rolle von "${username || 'Unbekannt'}" wirklich entfernen?`)) return;
+    
+    try {
+      const { error } = await supabase.rpc('admin_remove_admin', { _user_id: userId });
+      
+      if (error) throw error;
+      
+      setAllUsers(allUsers.map(u => 
+        u.id === userId ? { ...u, role: 'user' } : u
+      ));
+      toast({ title: "Admin-Rolle entfernt" });
+    } catch (error) {
+      console.error('Error removing admin:', error);
+      toast({ 
+        title: "Fehler", 
+        description: error instanceof Error && error.message.includes('yourself') 
+          ? "Du kannst deine eigene Admin-Rolle nicht entfernen." 
+          : "Admin-Rolle konnte nicht entfernt werden.",
         variant: "destructive" 
       });
     }
@@ -1108,6 +1155,23 @@ const AdminPage = () => {
                         >
                           <Ban className="w-4 h-4" />
                         </button>
+                        {u.role !== 'admin' ? (
+                          <button
+                            onClick={() => handleMakeAdmin(u.id, u.username)}
+                            className="p-2 text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10 rounded-lg transition-colors"
+                            title="Zum Admin machen"
+                          >
+                            <ShieldPlus className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleRemoveAdmin(u.id, u.username)}
+                            className="p-2 text-amber-600 hover:text-muted-foreground hover:bg-secondary rounded-lg transition-colors"
+                            title="Admin-Rolle entfernen"
+                          >
+                            <Crown className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDeleteAccount(u.id, u.username)}
                           className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"

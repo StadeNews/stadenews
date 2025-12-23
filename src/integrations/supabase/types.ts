@@ -903,6 +903,8 @@ export type Database = {
     }
     Functions: {
       admin_delete_user: { Args: { _user_id: string }; Returns: boolean }
+      admin_make_admin: { Args: { _user_id: string }; Returns: boolean }
+      admin_remove_admin: { Args: { _user_id: string }; Returns: boolean }
       get_admin_users: {
         Args: never
         Returns: {
