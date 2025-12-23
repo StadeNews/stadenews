@@ -101,7 +101,7 @@ const UeberUnsPage = () => {
                     </a>
 
                     <a
-                      href="https://facebook.com/stadenews"
+                      href="https://www.facebook.com/share/1BGBEepEAM/"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"

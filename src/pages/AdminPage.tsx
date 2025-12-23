@@ -22,7 +22,9 @@ import {
   Ban,
   Lock,
   Unlock,
-  MessageCircle
+  MessageCircle,
+  Image,
+  Video
 } from "lucide-react";
 import { 
   fetchAllStories, 
@@ -243,6 +245,22 @@ const AdminPage = () => {
       toast({ title: "Status aktualisiert" });
     } catch (error) {
       console.error('Error updating report:', error);
+      toast({ title: "Fehler", variant: "destructive" });
+    }
+  };
+
+  const handleMediaStatus = async (storyId: string, status: 'approved' | 'rejected') => {
+    try {
+      await supabase
+        .from('stories')
+        .update({ media_status: status })
+        .eq('id', storyId);
+      setStories(stories.map(s => 
+        s.id === storyId ? { ...s, media_status: status } : s
+      ));
+      toast({ title: status === 'approved' ? "Medien genehmigt" : "Medien abgelehnt" });
+    } catch (error) {
+      console.error('Error updating media status:', error);
       toast({ title: "Fehler", variant: "destructive" });
     }
   };
@@ -571,6 +589,59 @@ const AdminPage = () => {
                     <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
                       {story.content}
                     </p>
+
+                    {/* Media Preview for Admin */}
+                    {story.media_url && (
+                      <div className="mb-4 p-3 bg-secondary/50 rounded-xl border border-border">
+                        <div className="flex items-center gap-2 mb-2">
+                          {story.media_type === 'image' ? (
+                            <Image className="w-4 h-4 text-amber-500" />
+                          ) : (
+                            <Video className="w-4 h-4 text-amber-500" />
+                          )}
+                          <span className="text-sm font-medium text-foreground">
+                            Anhang: {story.media_type === 'image' ? 'Bild' : 'Video'}
+                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            story.media_status === 'approved' ? 'bg-green-500/20 text-green-600' :
+                            story.media_status === 'rejected' ? 'bg-destructive/20 text-destructive' :
+                            'bg-yellow-500/20 text-yellow-600'
+                          }`}>
+                            {story.media_status === 'approved' ? 'Genehmigt' :
+                             story.media_status === 'rejected' ? 'Abgelehnt' : 'Prüfen'}
+                          </span>
+                        </div>
+                        
+                        {story.media_type === 'image' ? (
+                          <img src={story.media_url} alt="Story Anhang" className="w-full max-h-40 object-cover rounded-lg" />
+                        ) : (
+                          <video src={story.media_url} controls className="w-full max-h-40 rounded-lg" />
+                        )}
+                        
+                        {story.media_description && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            <strong>Beschreibung:</strong> {story.media_description}
+                          </p>
+                        )}
+                        
+                        {story.media_status === 'pending' && (
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => handleMediaStatus(story.id, 'approved')}
+                              className="flex items-center gap-1 px-3 py-1 bg-green-500/20 text-green-600 rounded text-xs hover:bg-green-500/30"
+                            >
+                              <Check className="w-3 h-3" /> Medien OK
+                            </button>
+                            <button
+                              onClick={() => handleMediaStatus(story.id, 'rejected')}
+                              className="flex items-center gap-1 px-3 py-1 bg-destructive/20 text-destructive rounded text-xs hover:bg-destructive/30"
+                            >
+                              <X className="w-3 h-3" /> Medien ablehnen
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <span className="text-xs text-muted-foreground">
