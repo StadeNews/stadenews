@@ -378,10 +378,13 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           created_at: string
+          facebook_url: string | null
           id: string
+          instagram_url: string | null
           is_online: boolean | null
           is_private: boolean | null
           likes_count: number | null
+          tiktok_url: string | null
           updated_at: string
           username: string | null
         }
@@ -390,10 +393,13 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          facebook_url?: string | null
           id: string
+          instagram_url?: string | null
           is_online?: boolean | null
           is_private?: boolean | null
           likes_count?: number | null
+          tiktok_url?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -402,10 +408,13 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          facebook_url?: string | null
           id?: string
+          instagram_url?: string | null
           is_online?: boolean | null
           is_private?: boolean | null
           likes_count?: number | null
+          tiktok_url?: string | null
           updated_at?: string
           username?: string | null
         }

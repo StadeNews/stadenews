@@ -24,6 +24,7 @@ import StatusCenterPage from "./pages/StatusCenterPage";
 import UeberUnsPage from "./pages/UeberUnsPage";
 import UpdatesPage from "./pages/UpdatesPage";
 import AdminPage from "./pages/AdminPage";
+import AdminStatsPage from "./pages/AdminStatsPage";
 import AuthPage from "./pages/AuthPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import ImpressumPage from "./pages/ImpressumPage";
@@ -81,6 +82,7 @@ const AppRoutes = () => {
         <Route path="/ueber-uns" element={<UeberUnsPage />} />
         <Route path="/updates" element={<UpdatesPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin/stats" element={<AdminStatsPage />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/impressum" element={<ImpressumPage />} />

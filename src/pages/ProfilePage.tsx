@@ -23,7 +23,8 @@ import {
   Shield,
   Trash2,
   AlertTriangle,
-  Star
+  Star,
+  HelpCircle
 } from "lucide-react";
 import { 
   fetchUserProfile, 
@@ -34,9 +35,14 @@ import {
 import type { Profile, Comment, Story } from "@/types/database";
 import { AdminCrown, UserBadge } from "@/components/shared/UserBadge";
 import { BadgeProgress } from "@/components/shared/BadgeProgress";
+import { SocialMediaLinks } from "@/components/shared/SocialMediaLinks";
+import { AudioUploadTutorial, useAudioTutorial } from "@/components/shared/AudioUploadTutorial";
 
 interface ExtendedProfile extends Profile {
   is_private?: boolean;
+  instagram_url?: string | null;
+  facebook_url?: string | null;
+  tiktok_url?: string | null;
 }
 
 const ProfilePage = () => {
@@ -87,6 +93,10 @@ const ProfilePage = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  
+  // Audio tutorial
+  const [showAudioTutorial, setShowAudioTutorial] = useState(false);
+  const { shouldShowTutorial, markTutorialShown } = useAudioTutorial();
   
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -680,20 +690,35 @@ const ProfilePage = () => {
                 <Music className="w-4 h-4" />
                 Profilsong
               </label>
-              <button
-                onClick={() => audioInputRef.current?.click()}
-                disabled={uploadingAudio}
-                className="text-xs text-primary hover:underline flex items-center gap-1"
-              >
-                {uploadingAudio ? (
-                  <>
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Lädt...
-                  </>
-                ) : (
-                  'Song ändern'
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAudioTutorial(true)}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                >
+                  <HelpCircle className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => {
+                    if (shouldShowTutorial()) {
+                      setShowAudioTutorial(true);
+                      markTutorialShown();
+                    } else {
+                      audioInputRef.current?.click();
+                    }
+                  }}
+                  disabled={uploadingAudio}
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                >
+                  {uploadingAudio ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Lädt...
+                    </>
+                  ) : (
+                    'Song ändern'
+                  )}
+                </button>
+              </div>
               <input
                 ref={audioInputRef}
                 type="file"
@@ -725,6 +750,18 @@ const ProfilePage = () => {
                 Noch kein Profilsong hochgeladen.
               </div>
             )}
+          </div>
+
+          {/* Social Media Links */}
+          <div className="mb-4">
+            <SocialMediaLinks
+              userId={user?.id || ''}
+              instagramUrl={profile?.instagram_url}
+              facebookUrl={profile?.facebook_url}
+              tiktokUrl={profile?.tiktok_url}
+              isOwnProfile={true}
+              onUpdate={loadData}
+            />
           </div>
 
           {/* Stats */}
@@ -1079,6 +1116,14 @@ const ProfilePage = () => {
           )}
         </div>
       </div>
+      
+      {/* Audio Tutorial Modal */}
+      {showAudioTutorial && (
+        <AudioUploadTutorial onClose={() => {
+          setShowAudioTutorial(false);
+          markTutorialShown();
+        }} />
+      )}
     </MainLayout>
   );
 };

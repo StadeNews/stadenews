@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,7 +29,8 @@ import {
   ShieldCheck,
   Crown,
   UserCheck,
-  UserX
+  UserX,
+  BarChart3
 } from "lucide-react";
 import { 
   fetchAllStories, 
@@ -502,9 +503,18 @@ const AdminPage = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="font-display text-3xl font-bold mb-2 text-foreground">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Verwalte Storys, Meldungen und Nutzer</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="font-display text-3xl font-bold mb-2 text-foreground">Admin Dashboard</h1>
+              <p className="text-muted-foreground">Verwalte Storys, Meldungen und Nutzer</p>
+            </div>
+            <Link 
+              to="/admin/stats" 
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Statistiken
+            </Link>
           </div>
 
           {/* Stats */}
