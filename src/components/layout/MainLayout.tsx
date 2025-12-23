@@ -2,6 +2,8 @@ import { ReactNode } from "react";
 import { TopNavbar } from "./TopNavbar";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { Footer } from "../shared/Footer";
+import { useAuth } from "@/hooks/useAuth";
+import { useBadgeNotifications } from "@/hooks/useBadgeNotifications";
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -9,6 +11,11 @@ interface MainLayoutProps {
 }
 
 export const MainLayout = ({ children, showFooter = true }: MainLayoutProps) => {
+  const { user } = useAuth();
+  
+  // Check for badge notifications on app load
+  useBadgeNotifications(user?.id);
+  
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <TopNavbar />
