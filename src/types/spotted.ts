@@ -1,4 +1,19 @@
-import type { Profile } from './database';
+export interface SpottedProfile {
+  id: string;
+  username: string | null;
+  avatar_url: string | null;
+}
+
+export interface SpottedMedia {
+  id: string;
+  spotted_id: string;
+  media_url: string;
+  media_type: 'image' | 'video';
+  media_description: string | null;
+  media_status: 'pending' | 'approved' | 'rejected';
+  rejection_reason: string | null;
+  created_at: string;
+}
 
 export interface Spotted {
   id: string;
@@ -11,7 +26,11 @@ export interface Spotted {
   spotted_time: string | null;
   likes_count: number;
   created_at: string;
-  profile?: Profile | null;
+  media_url?: string | null;
+  media_type?: string | null;
+  media_status?: string | null;
+  profile?: SpottedProfile | null;
+  spotted_media?: SpottedMedia[];
 }
 
 export interface SpottedComment {
@@ -21,7 +40,7 @@ export interface SpottedComment {
   anonymous_author: string | null;
   content: string;
   created_at: string;
-  profile?: Profile | null;
+  profile?: SpottedProfile | null;
 }
 
 export interface SpottedLike {

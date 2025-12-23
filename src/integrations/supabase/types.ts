@@ -482,6 +482,9 @@ export type Database = {
           id: string
           likes_count: number | null
           location: string | null
+          media_status: string | null
+          media_type: string | null
+          media_url: string | null
           spotted_date: string | null
           spotted_time: string | null
           title: string
@@ -494,6 +497,9 @@ export type Database = {
           id?: string
           likes_count?: number | null
           location?: string | null
+          media_status?: string | null
+          media_type?: string | null
+          media_url?: string | null
           spotted_date?: string | null
           spotted_time?: string | null
           title: string
@@ -506,6 +512,9 @@ export type Database = {
           id?: string
           likes_count?: number | null
           location?: string | null
+          media_status?: string | null
+          media_type?: string | null
+          media_url?: string | null
           spotted_date?: string | null
           spotted_time?: string | null
           title?: string
@@ -573,6 +582,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "spotted_likes_spotted_id_fkey"
+            columns: ["spotted_id"]
+            isOneToOne: false
+            referencedRelation: "spotted"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spotted_media: {
+        Row: {
+          created_at: string
+          id: string
+          media_description: string | null
+          media_status: string
+          media_type: string
+          media_url: string
+          rejection_reason: string | null
+          spotted_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          media_description?: string | null
+          media_status?: string
+          media_type: string
+          media_url: string
+          rejection_reason?: string | null
+          spotted_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          media_description?: string | null
+          media_status?: string
+          media_type?: string
+          media_url?: string
+          rejection_reason?: string | null
+          spotted_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spotted_media_spotted_id_fkey"
             columns: ["spotted_id"]
             isOneToOne: false
             referencedRelation: "spotted"
