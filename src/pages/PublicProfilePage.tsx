@@ -8,13 +8,16 @@ import {
   FileText, 
   Heart,
   Flag,
-  Loader2
+  Loader2,
+  Star
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnonymousId } from "@/hooks/useAnonymousId";
 import { useToast } from "@/hooks/use-toast";
 import { ReportModal } from "@/components/shared/ReportModal";
+import { AdminCrown, UserBadge } from "@/components/shared/UserBadge";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface PublicProfile {
   id: string;
@@ -36,6 +39,9 @@ const PublicProfilePage = () => {
   const [showReport, setShowReport] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
   const [storyCount, setStoryCount] = useState(0);
+  const [badgeLevel, setBadgeLevel] = useState<number>(0);
+  
+  const { isAdmin: isProfileAdmin } = useUserRole(profile?.id);
 
   useEffect(() => {
     loadProfile();
@@ -76,6 +82,18 @@ const PublicProfilePage = () => {
         .eq('status', 'published');
       
       setStoryCount(stories || 0);
+
+      // Fetch badge
+      const { data: badgeData } = await supabase
+        .from('user_badges')
+        .select('badge_level')
+        .eq('user_id', profileData.id)
+        .eq('badge_type', 'commenter')
+        .maybeSingle();
+      
+      if (badgeData) {
+        setBadgeLevel(badgeData.badge_level);
+      }
 
       // Check if current user liked this profile
       if (user || anonymousId) {
@@ -166,11 +184,17 @@ const PublicProfilePage = () => {
               )}
             </div>
             <div className="flex-1">
-              <h1 className="font-display text-2xl font-bold">
-                {profile.username || 'Anonym'}
-              </h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="font-display text-xl md:text-2xl font-bold">
+                  {profile.username || 'Anonym'}
+                </h1>
+                {isProfileAdmin && <AdminCrown size="md" />}
+                {badgeLevel > 0 && (
+                  <UserBadge type="commenter" level={badgeLevel} size="md" showLabel />
+                )}
+              </div>
               {profile.bio && (
-                <p className="text-muted-foreground mt-1">{profile.bio}</p>
+                <p className="text-muted-foreground mt-1 text-sm md:text-base">{profile.bio}</p>
               )}
               <p className="text-xs text-muted-foreground mt-2">
                 Mitglied seit {new Date(profile.created_at).toLocaleDateString('de-DE')}
