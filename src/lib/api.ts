@@ -416,6 +416,16 @@ export const deleteGroupMessage = async (id: string): Promise<void> => {
   if (error) throw error;
 };
 
+// Clear all messages in a group chat (admin)
+export const clearGroupMessages = async (groupId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('group_messages')
+    .update({ is_deleted: true })
+    .eq('group_id', groupId);
+  
+  if (error) throw error;
+};
+
 // Mark story as unverified (admin)
 export const markStoryUnverified = async (id: string, isVerified: boolean): Promise<void> => {
   const { error } = await supabase
