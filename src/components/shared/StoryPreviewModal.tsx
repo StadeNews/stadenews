@@ -4,6 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Send, X, Image, Video, Instagram, User } from "lucide-react";
 import type { Category } from "@/types/database";
 
+interface MediaFile {
+  id: string;
+  url: string;
+  type: 'image' | 'video';
+  description: string;
+}
+
 interface StoryPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,11 +22,9 @@ interface StoryPreviewModalProps {
     story: string;
     socialMediaSuitable: boolean;
     creditsName: string;
-    mediaUrl?: string;
-    mediaType?: string;
-    mediaDescription?: string;
   };
   categories: Category[];
+  mediaFiles?: MediaFile[];
 }
 
 export const StoryPreviewModal = ({
@@ -29,6 +34,7 @@ export const StoryPreviewModal = ({
   isSubmitting,
   form,
   categories,
+  mediaFiles = [],
 }: StoryPreviewModalProps) => {
   const selectedCategory = categories.find(c => c.id === form.category);
   
@@ -54,30 +60,42 @@ export const StoryPreviewModal = ({
             <h2 className="text-xl font-bold text-foreground">{form.title}</h2>
           )}
           
-          {/* Media Preview */}
-          {form.mediaUrl && (
-            <div className="relative rounded-xl overflow-hidden bg-secondary">
-              {form.mediaType === 'image' ? (
-                <img 
-                  src={form.mediaUrl} 
-                  alt="Story Medien" 
-                  className="w-full max-h-64 object-cover"
-                />
-              ) : form.mediaType === 'video' ? (
-                <video 
-                  src={form.mediaUrl} 
-                  controls 
-                  className="w-full max-h-64"
-                />
-              ) : null}
-              
-              {form.mediaDescription && (
-                <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-2">
-                  <p className="text-xs text-white">
-                    <strong>Beschreibung:</strong> {form.mediaDescription}
-                  </p>
-                </div>
-              )}
+          {/* Media Preview Grid */}
+          {mediaFiles.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">
+                {mediaFiles.length} Medien angehängt:
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {mediaFiles.map((media) => (
+                  <div key={media.id} className="relative rounded-lg overflow-hidden bg-secondary aspect-square">
+                    {media.type === 'image' ? (
+                      <img 
+                        src={media.url} 
+                        alt={media.description} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <video 
+                        src={media.url} 
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5">
+                      <p className="text-[10px] text-white truncate">
+                        {media.description || 'Keine Beschreibung'}
+                      </p>
+                    </div>
+                    <div className="absolute top-1 right-1">
+                      {media.type === 'image' ? (
+                        <Image className="w-3 h-3 text-white drop-shadow" />
+                      ) : (
+                        <Video className="w-3 h-3 text-white drop-shadow" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           
@@ -104,19 +122,16 @@ export const StoryPreviewModal = ({
               </Badge>
             )}
             
-            {form.mediaUrl && (
+            {mediaFiles.length > 0 && (
               <Badge variant="outline" className="text-amber-400 border-amber-400/50">
-                {form.mediaType === 'image' ? (
-                  <><Image className="w-3 h-3 mr-1" /> Mit Bild</>
-                ) : (
-                  <><Video className="w-3 h-3 mr-1" /> Mit Video</>
-                )}
+                <Image className="w-3 h-3 mr-1" />
+                {mediaFiles.length} {mediaFiles.length === 1 ? 'Medium' : 'Medien'}
               </Badge>
             )}
           </div>
           
           {/* Media Review Notice */}
-          {form.mediaUrl && (
+          {mediaFiles.length > 0 && (
             <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
               <p className="text-sm text-amber-400">
                 <strong>Hinweis:</strong> Bilder und Videos werden separat von einem Admin geprüft und können unabhängig vom Text abgelehnt werden.

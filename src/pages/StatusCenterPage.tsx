@@ -14,7 +14,10 @@ import {
   MessageSquare,
   Loader2,
   Send,
-  FileText
+  FileText,
+  Image,
+  Video,
+  AlertCircle
 } from "lucide-react";
 
 interface AdminMessage {
@@ -26,12 +29,24 @@ interface AdminMessage {
   created_at: string;
 }
 
+interface StoryMediaItem {
+  id: string;
+  story_id: string;
+  media_url: string;
+  media_type: string;
+  media_description: string | null;
+  media_status: string;
+  rejection_reason: string | null;
+  created_at: string;
+}
+
 interface UserStory {
   id: string;
   title: string | null;
   content: string;
   status: string;
   created_at: string;
+  story_media?: StoryMediaItem[];
 }
 
 const StatusCenterPage = () => {
@@ -58,7 +73,7 @@ const StatusCenterPage = () => {
 
   const loadData = async () => {
     try {
-      // Fetch user's stories
+      // Fetch user's stories with media
       if (user) {
         const { data: storiesData } = await supabase
           .from('stories')
@@ -66,7 +81,23 @@ const StatusCenterPage = () => {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         
-        setStories(storiesData || []);
+        // Fetch media for each story
+        if (storiesData && storiesData.length > 0) {
+          const storyIds = storiesData.map(s => s.id);
+          const { data: mediaData } = await supabase
+            .from('story_media')
+            .select('*')
+            .in('story_id', storyIds);
+
+          const storiesWithMedia = storiesData.map(story => ({
+            ...story,
+            story_media: mediaData?.filter(m => m.story_id === story.id) || []
+          }));
+
+          setStories(storiesWithMedia);
+        } else {
+          setStories([]);
+        }
       }
 
       // Fetch admin messages
@@ -132,6 +163,24 @@ const StatusCenterPage = () => {
     }
   };
 
+  const getMediaStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending': return <Clock className="w-3 h-3 text-warning" />;
+      case 'approved': return <Check className="w-3 h-3 text-success" />;
+      case 'rejected': return <X className="w-3 h-3 text-destructive" />;
+      default: return <Clock className="w-3 h-3" />;
+    }
+  };
+
+  const getMediaStatusText = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Prüfung';
+      case 'approved': return 'Genehmigt';
+      case 'rejected': return 'Abgelehnt';
+      default: return status;
+    }
+  };
+
   if (authLoading || isLoading) {
     return (
       <MainLayout>
@@ -143,11 +192,41 @@ const StatusCenterPage = () => {
   }
 
   const unreadCount = messages.filter(m => !m.is_read && !m.user_reply).length;
+  const pendingMediaCount = stories.reduce((count, story) => 
+    count + (story.story_media?.filter(m => m.media_status === 'pending').length || 0), 0
+  );
+  const rejectedMediaCount = stories.reduce((count, story) => 
+    count + (story.story_media?.filter(m => m.media_status === 'rejected').length || 0), 0
+  );
 
   return (
     <MainLayout>
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <h1 className="font-display text-3xl font-bold mb-6">Status-Center</h1>
+
+        {/* Summary Cards */}
+        {(pendingMediaCount > 0 || rejectedMediaCount > 0) && (
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            {pendingMediaCount > 0 && (
+              <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 flex items-center gap-3">
+                <Clock className="w-5 h-5 text-warning" />
+                <div>
+                  <p className="font-medium text-warning">{pendingMediaCount} Medien</p>
+                  <p className="text-xs text-muted-foreground">in Prüfung</p>
+                </div>
+              </div>
+            )}
+            {rejectedMediaCount > 0 && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-destructive" />
+                <div>
+                  <p className="font-medium text-destructive">{rejectedMediaCount} Medien</p>
+                  <p className="text-xs text-muted-foreground">abgelehnt</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6">
@@ -213,7 +292,49 @@ const StatusCenterPage = () => {
                       {getStatusText(story.status)}
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  
+                  {/* Media Status */}
+                  {story.story_media && story.story_media.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">
+                        Angehängte Medien ({story.story_media.length}):
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {story.story_media.map((media) => (
+                          <div 
+                            key={media.id}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs ${
+                              media.media_status === 'pending' ? 'bg-warning/10 text-warning' :
+                              media.media_status === 'approved' ? 'bg-success/10 text-success' :
+                              'bg-destructive/10 text-destructive'
+                            }`}
+                          >
+                            {media.media_type === 'image' ? (
+                              <Image className="w-3 h-3" />
+                            ) : (
+                              <Video className="w-3 h-3" />
+                            )}
+                            {getMediaStatusIcon(media.media_status)}
+                            <span>{getMediaStatusText(media.media_status)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Show rejection reasons */}
+                      {story.story_media.filter(m => m.media_status === 'rejected' && m.rejection_reason).map((media) => (
+                        <div key={`reason-${media.id}`} className="mt-2 p-2 bg-destructive/10 rounded-lg">
+                          <p className="text-xs text-destructive flex items-start gap-1.5">
+                            <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                            <span>
+                              <strong>Ablehnungsgrund:</strong> {media.rejection_reason}
+                            </span>
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-muted-foreground mt-2">
                     {new Date(story.created_at).toLocaleDateString('de-DE')}
                   </p>
                 </div>

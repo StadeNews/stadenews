@@ -12,6 +12,13 @@ import { EmojiPicker } from "@/components/shared/EmojiPicker";
 import { StoryPreviewModal } from "@/components/shared/StoryPreviewModal";
 import type { Category } from "@/types/database";
 
+interface MediaFile {
+  id: string;
+  url: string;
+  type: 'image' | 'video';
+  description: string;
+}
+
 const SendenPage = () => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -28,15 +35,13 @@ const SendenPage = () => {
   const [isImprovingText, setIsImprovingText] = useState(false);
   const [aiClarification, setAiClarification] = useState<string | null>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [form, setForm] = useState({
     category: "",
     title: "",
     story: "",
     socialMediaSuitable: false,
     creditsName: "",
-    mediaUrl: "",
-    mediaType: "",
-    mediaDescription: "",
   });
 
   useEffect(() => {
@@ -116,66 +121,81 @@ const SendenPage = () => {
   };
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    // Validate file type
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    
-    if (!isImage && !isVideo) {
-      toast({ title: "Fehler", description: "Nur Bilder und Videos sind erlaubt.", variant: "destructive" });
-      return;
-    }
-
-    // Validate file size (max 50MB for videos, 10MB for images)
-    const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      toast({ 
-        title: "Datei zu groß", 
-        description: isVideo ? "Videos dürfen max. 50MB sein." : "Bilder dürfen max. 10MB sein.", 
-        variant: "destructive" 
-      });
+    // Check max files limit
+    if (mediaFiles.length + files.length > 10) {
+      toast({ title: "Zu viele Dateien", description: "Maximal 10 Bilder/Videos erlaubt.", variant: "destructive" });
       return;
     }
 
     setIsUploadingMedia(true);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `stories/${fileName}`;
+      for (const file of Array.from(files)) {
+        // Validate file type
+        const isImage = file.type.startsWith('image/');
+        const isVideo = file.type.startsWith('video/');
+        
+        if (!isImage && !isVideo) {
+          toast({ title: "Fehler", description: `${file.name}: Nur Bilder und Videos sind erlaubt.`, variant: "destructive" });
+          continue;
+        }
 
-      const { error: uploadError } = await supabase.storage
-        .from('story-media')
-        .upload(filePath, file);
+        // Validate file size (max 50MB for videos, 10MB for images)
+        const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+          toast({ 
+            title: "Datei zu groß", 
+            description: `${file.name}: ${isVideo ? "Videos max. 50MB" : "Bilder max. 10MB"}.`, 
+            variant: "destructive" 
+          });
+          continue;
+        }
 
-      if (uploadError) throw uploadError;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `stories/${fileName}`;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('story-media')
-        .getPublicUrl(filePath);
+        const { error: uploadError } = await supabase.storage
+          .from('story-media')
+          .upload(filePath, file);
 
-      setForm({ 
-        ...form, 
-        mediaUrl: publicUrl, 
-        mediaType: isImage ? 'image' : 'video' 
-      });
+        if (uploadError) throw uploadError;
 
-      toast({ title: "Erfolgreich hochgeladen", description: "Bitte beschreibe kurz, was auf dem Medium zu sehen ist." });
+        const { data: { publicUrl } } = supabase.storage
+          .from('story-media')
+          .getPublicUrl(filePath);
+
+        setMediaFiles(prev => [...prev, {
+          id: fileName,
+          url: publicUrl,
+          type: isImage ? 'image' : 'video',
+          description: ''
+        }]);
+      }
+
+      toast({ title: "Hochgeladen", description: "Bitte beschreibe kurz, was auf den Medien zu sehen ist." });
     } catch (error) {
       console.error('Error uploading media:', error);
       toast({ title: "Upload fehlgeschlagen", description: "Bitte versuche es erneut.", variant: "destructive" });
     } finally {
       setIsUploadingMedia(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
-  const handleRemoveMedia = () => {
-    setForm({ ...form, mediaUrl: "", mediaType: "", mediaDescription: "" });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+  const handleRemoveMedia = (mediaId: string) => {
+    setMediaFiles(prev => prev.filter(m => m.id !== mediaId));
+  };
+
+  const handleUpdateMediaDescription = (mediaId: string, description: string) => {
+    setMediaFiles(prev => prev.map(m => 
+      m.id === mediaId ? { ...m, description } : m
+    ));
   };
 
   const handleShowPreview = (e: React.FormEvent) => {
@@ -190,11 +210,12 @@ const SendenPage = () => {
       return;
     }
 
-    // Check if media has description
-    if (form.mediaUrl && !form.mediaDescription.trim()) {
+    // Check if all media have descriptions
+    const missingDescriptions = mediaFiles.filter(m => !m.description.trim());
+    if (missingDescriptions.length > 0) {
       toast({
         title: "Beschreibung fehlt",
-        description: "Bitte beschreibe kurz, was auf dem Bild/Video zu sehen ist.",
+        description: "Bitte beschreibe alle hochgeladenen Medien.",
         variant: "destructive",
       });
       return;
@@ -220,19 +241,41 @@ const SendenPage = () => {
     const categoryName = categories.find(c => c.id === form.category)?.name || 'Unbekannt';
     
     try {
-      await submitStory({
-        category_id: form.category,
-        title: form.title || undefined,
-        content: form.story,
-        user_id: asAnonymous ? undefined : user?.id,
-        anonymous_author: asAnonymous ? authorName : (user ? undefined : authorName),
-        social_media_suitable: form.socialMediaSuitable,
-        credits_name: form.creditsName.trim() || undefined,
-        media_url: form.mediaUrl || undefined,
-        media_type: form.mediaType || undefined,
-        media_description: form.mediaDescription.trim() || undefined,
-        media_status: form.mediaUrl ? 'pending' : undefined,
-      });
+      // First, create the story
+      const { data: storyData, error: storyError } = await supabase
+        .from('stories')
+        .insert({
+          category_id: form.category,
+          title: form.title || null,
+          content: form.story,
+          user_id: asAnonymous ? null : user?.id,
+          anonymous_author: asAnonymous ? authorName : (user ? null : authorName),
+          social_media_suitable: form.socialMediaSuitable,
+          credits_name: form.creditsName.trim() || null,
+        })
+        .select('id')
+        .single();
+
+      if (storyError) throw storyError;
+
+      // Then, insert media files if any
+      if (mediaFiles.length > 0 && storyData) {
+        const mediaInserts = mediaFiles.map(m => ({
+          story_id: storyData.id,
+          media_url: m.url,
+          media_type: m.type,
+          media_description: m.description.trim(),
+          media_status: 'pending' as const,
+        }));
+
+        const { error: mediaError } = await supabase
+          .from('story_media')
+          .insert(mediaInserts);
+
+        if (mediaError) {
+          console.error('Error inserting media:', mediaError);
+        }
+      }
       
       // Send email notification to admin
       try {
@@ -244,9 +287,8 @@ const SendenPage = () => {
             authorName: authorName,
             socialMediaSuitable: form.socialMediaSuitable,
             creditsName: form.creditsName.trim() || undefined,
-            hasMedia: !!form.mediaUrl,
-            mediaType: form.mediaType,
-            mediaDescription: form.mediaDescription.trim() || undefined,
+            hasMedia: mediaFiles.length > 0,
+            mediaCount: mediaFiles.length,
           }
         });
       } catch (emailError) {
@@ -257,7 +299,7 @@ const SendenPage = () => {
       setIsSuccess(true);
       toast({
         title: "Story eingereicht! ✓",
-        description: form.mediaUrl 
+        description: mediaFiles.length > 0 
           ? "Deine Story wird geprüft. Bilder/Videos werden separat überprüft."
           : "Deine Story wird geprüft und bald veröffentlicht.",
       });
@@ -281,7 +323,8 @@ const SendenPage = () => {
   };
 
   const handleReset = () => {
-    setForm({ category: "", title: "", story: "", socialMediaSuitable: false, creditsName: "", mediaUrl: "", mediaType: "", mediaDescription: "" });
+    setForm({ category: "", title: "", story: "", socialMediaSuitable: false, creditsName: "" });
+    setMediaFiles([]);
     setIsSuccess(false);
   };
 
@@ -317,13 +360,13 @@ const SendenPage = () => {
                 </div>
               </div>
               
-              {form.mediaUrl && (
+              {mediaFiles.length > 0 && (
                 <div className="flex items-start gap-3 mb-4">
                   <Image className="w-5 h-5 text-amber-500 mt-0.5" />
                   <div>
                     <h3 className="font-semibold text-foreground">Medien-Überprüfung</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Bilder/Videos werden separat geprüft und können unabhängig vom Text abgelehnt werden.
+                      {mediaFiles.length} Bild(er)/Video(s) werden separat geprüft und können unabhängig vom Text abgelehnt werden.
                     </p>
                   </div>
                 </div>
@@ -503,86 +546,104 @@ const SendenPage = () => {
             {/* Media Upload */}
             <div>
               <label className="block text-sm font-medium mb-2 text-foreground">
-                Bild oder Video <span className="text-muted-foreground">(optional)</span>
+                Bilder oder Videos <span className="text-muted-foreground">(optional, max. 10)</span>
               </label>
               
-              {!form.mediaUrl ? (
-                <div className="relative">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,video/*"
-                    onChange={handleMediaUpload}
-                    disabled={isUploadingMedia}
-                    className="hidden"
-                    id="media-upload"
-                  />
-                  <label
-                    htmlFor="media-upload"
-                    className={`flex items-center justify-center gap-3 w-full px-4 py-6 bg-secondary border-2 border-dashed border-border rounded-xl cursor-pointer hover:bg-secondary/80 hover:border-primary/50 transition-all ${isUploadingMedia ? 'opacity-50 cursor-wait' : ''}`}
-                  >
-                    {isUploadingMedia ? (
-                      <>
-                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                        <span className="text-muted-foreground">Wird hochgeladen...</span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex gap-2">
-                          <Image className="w-6 h-6 text-muted-foreground" />
-                          <Video className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                        <span className="text-muted-foreground">Bild oder Video hochladen</span>
-                      </>
-                    )}
-                  </label>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Bilder max. 10MB, Videos max. 50MB
-                  </p>
-                </div>
-              ) : (
+              {/* Upload Button */}
+              <div className="relative mb-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleMediaUpload}
+                  disabled={isUploadingMedia || mediaFiles.length >= 10}
+                  className="hidden"
+                  id="media-upload"
+                  multiple
+                />
+                <label
+                  htmlFor="media-upload"
+                  className={`flex items-center justify-center gap-3 w-full px-4 py-6 bg-secondary border-2 border-dashed border-border rounded-xl cursor-pointer hover:bg-secondary/80 hover:border-primary/50 transition-all ${isUploadingMedia || mediaFiles.length >= 10 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {isUploadingMedia ? (
+                    <>
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      <span className="text-muted-foreground">Wird hochgeladen...</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex gap-2">
+                        <Image className="w-6 h-6 text-muted-foreground" />
+                        <Video className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                      <span className="text-muted-foreground">
+                        {mediaFiles.length > 0 ? 'Weitere Dateien hinzufügen' : 'Bilder oder Videos hochladen'}
+                      </span>
+                    </>
+                  )}
+                </label>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Bilder max. 10MB, Videos max. 50MB • {mediaFiles.length}/10 Dateien
+                </p>
+              </div>
+
+              {/* Media Preview Grid */}
+              {mediaFiles.length > 0 && (
                 <div className="space-y-3">
-                  {/* Media Preview */}
-                  <div className="relative rounded-xl overflow-hidden bg-secondary">
-                    {form.mediaType === 'image' ? (
-                      <img 
-                        src={form.mediaUrl} 
-                        alt="Vorschau" 
-                        className="w-full max-h-48 object-cover"
-                      />
-                    ) : (
-                      <video 
-                        src={form.mediaUrl} 
-                        controls 
-                        className="w-full max-h-48"
-                      />
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleRemoveMedia}
-                      className="absolute top-2 right-2 p-1.5 bg-black/70 rounded-full hover:bg-black/90 transition-colors"
-                    >
-                      <X className="w-4 h-4 text-white" />
-                    </button>
-                  </div>
+                  {mediaFiles.map((media) => (
+                    <div key={media.id} className="bg-secondary/50 rounded-xl p-3 border border-border">
+                      <div className="flex gap-3">
+                        {/* Thumbnail */}
+                        <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-secondary">
+                          {media.type === 'image' ? (
+                            <img 
+                              src={media.url} 
+                              alt="Vorschau" 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <video 
+                              src={media.url} 
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMedia(media.id)}
+                            className="absolute top-1 right-1 p-1 bg-black/70 rounded-full hover:bg-black/90 transition-colors"
+                          >
+                            <X className="w-3 h-3 text-white" />
+                          </button>
+                          <div className="absolute bottom-1 left-1">
+                            {media.type === 'image' ? (
+                              <Image className="w-4 h-4 text-white drop-shadow" />
+                            ) : (
+                              <Video className="w-4 h-4 text-white drop-shadow" />
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Description Input */}
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={media.description}
+                            onChange={(e) => handleUpdateMediaDescription(media.id, e.target.value)}
+                            placeholder="Was ist darauf zu sehen?"
+                            className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Beschreibung für Admin-Prüfung
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                   
-                  {/* Media Description */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-foreground">
-                      Was ist darauf zu sehen? <span className="text-destructive">*</span>
-                    </label>
-                    <textarea
-                      value={form.mediaDescription}
-                      onChange={(e) => setForm({ ...form, mediaDescription: e.target.value })}
-                      placeholder="Beschreibe kurz, was auf dem Bild/Video zu sehen ist..."
-                      rows={2}
-                      className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
-                    />
-                    <p className="text-xs text-amber-400 mt-2 flex items-start gap-1.5">
-                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                      Diese Beschreibung hilft Admins bei der Überprüfung. Medien können separat abgelehnt werden.
-                    </p>
-                  </div>
+                  <p className="text-xs text-amber-400 flex items-start gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    Jedes Medium wird separat von Admins geprüft und kann einzeln abgelehnt werden.
+                  </p>
                 </div>
               )}
             </div>
@@ -658,6 +719,7 @@ const SendenPage = () => {
         isSubmitting={isSubmitting}
         form={form}
         categories={categories}
+        mediaFiles={mediaFiles}
       />
 
       <AuthModal

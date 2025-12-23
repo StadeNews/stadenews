@@ -9,6 +9,17 @@ export interface Category {
   created_at: string;
 }
 
+export interface StoryMedia {
+  id: string;
+  story_id: string;
+  media_url: string;
+  media_type: 'image' | 'video';
+  media_description: string | null;
+  media_status: 'pending' | 'approved' | 'rejected';
+  rejection_reason: string | null;
+  created_at: string;
+}
+
 export interface Story {
   id: string;
   category_id: string | null;
@@ -29,6 +40,7 @@ export interface Story {
   media_type?: string | null;
   media_description?: string | null;
   media_status?: 'pending' | 'approved' | 'rejected' | null;
+  story_media?: StoryMedia[];
 }
 
 export interface Comment {
