@@ -33,6 +33,7 @@ import {
 } from "@/lib/api";
 import type { Profile, Comment, Story } from "@/types/database";
 import { AdminCrown, UserBadge } from "@/components/shared/UserBadge";
+import { BadgeProgress } from "@/components/shared/BadgeProgress";
 
 interface ExtendedProfile extends Profile {
   is_private?: boolean;
@@ -733,6 +734,11 @@ const ProfilePage = () => {
               <p className="text-xl font-bold text-foreground">{stories.length}</p>
               <p className="text-xs text-muted-foreground">Meldungen</p>
             </div>
+          </div>
+
+          {/* Badge Progress Section */}
+          <div className="mb-4 bg-secondary/30 rounded-xl p-4 border border-border">
+            <BadgeProgress currentComments={comments.length} currentBadgeLevel={badgeLevel} />
           </div>
 
           {/* Password Change Section */}

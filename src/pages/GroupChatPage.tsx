@@ -5,8 +5,8 @@ import { ChatMessage, ChatMessageData } from "@/components/shared/ChatMessage";
 import { ChatMessageSkeleton } from "@/components/shared/SkeletonLoaders";
 import { ReportModal } from "@/components/shared/ReportModal";
 import { useToast } from "@/hooks/use-toast";
-import { Send, ArrowLeft, Users, Lock, Mail, Trash2 } from "lucide-react";
-import { fetchGroupMessages, sendGroupMessage, fetchChatGroups, deleteGroupMessage } from "@/lib/api";
+import { Send, ArrowLeft, Users, Lock, Mail, Trash2, AlertTriangle } from "lucide-react";
+import { fetchGroupMessages, sendGroupMessage, fetchChatGroups, deleteGroupMessage, clearGroupMessages } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { generateNickname, useAnonymousId } from "@/hooks/useAnonymousId";
@@ -36,6 +36,8 @@ const GroupChatPage = () => {
   const [pendingMessage, setPendingMessage] = useState("");
   const [reportingMessageId, setReportingMessageId] = useState<string | null>(null);
   const [adminUserIds, setAdminUserIds] = useState<Set<string>>(new Set());
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearLoading, setClearLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -213,6 +215,22 @@ const GroupChatPage = () => {
     }
   };
 
+  const handleClearAllMessages = async () => {
+    if (!isAdmin || !id) return;
+    setClearLoading(true);
+    try {
+      await clearGroupMessages(id);
+      setMessages([]);
+      setShowClearConfirm(false);
+      toast({ title: "Chat geleert", description: "Alle Nachrichten wurden gelöscht." });
+    } catch (error) {
+      console.error('Error clearing messages:', error);
+      toast({ title: "Fehler", description: "Chat konnte nicht geleert werden.", variant: "destructive" });
+    } finally {
+      setClearLoading(false);
+    }
+  };
+
   if (!group && !isLoading) {
     return (
       <MainLayout>
@@ -284,8 +302,58 @@ const GroupChatPage = () => {
               <Users className="w-4 h-4" />
               <span>{onlineCount > 0 ? onlineCount : 1}</span>
             </div>
+            {/* Admin: Clear chat button */}
+            {isAdmin && messages.length > 0 && (
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                title="Chat leeren"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Clear confirmation modal */}
+        {showClearConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-card border border-border rounded-xl p-6 max-w-sm w-full shadow-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-destructive" />
+                </div>
+                <h3 className="font-display text-lg font-bold">Chat leeren?</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Alle Nachrichten in diesem Chat werden unwiderruflich gelöscht.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  disabled={clearLoading}
+                  className="flex-1 px-4 py-2 bg-secondary text-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  onClick={handleClearAllMessages}
+                  disabled={clearLoading}
+                  className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors flex items-center justify-center gap-2"
+                >
+                  {clearLoading ? (
+                    <span className="animate-pulse">Löschen...</span>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Leeren
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 glass-card p-4 overflow-y-auto space-y-4 mb-4">
