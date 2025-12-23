@@ -25,6 +25,10 @@ export interface Story {
   social_media_suitable?: boolean;
   credits_name?: string | null;
   category?: Category;
+  media_url?: string | null;
+  media_type?: string | null;
+  media_description?: string | null;
+  media_status?: 'pending' | 'approved' | 'rejected' | null;
 }
 
 export interface Comment {

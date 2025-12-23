@@ -631,6 +631,10 @@ export type Database = {
           id: string
           is_breaking: boolean | null
           likes_count: number | null
+          media_description: string | null
+          media_status: string | null
+          media_type: string | null
+          media_url: string | null
           published_at: string | null
           social_media_suitable: boolean | null
           status: string | null
@@ -647,6 +651,10 @@ export type Database = {
           id?: string
           is_breaking?: boolean | null
           likes_count?: number | null
+          media_description?: string | null
+          media_status?: string | null
+          media_type?: string | null
+          media_url?: string | null
           published_at?: string | null
           social_media_suitable?: boolean | null
           status?: string | null
@@ -663,6 +671,10 @@ export type Database = {
           id?: string
           is_breaking?: boolean | null
           likes_count?: number | null
+          media_description?: string | null
+          media_status?: string | null
+          media_type?: string | null
+          media_url?: string | null
           published_at?: string | null
           social_media_suitable?: boolean | null
           status?: string | null

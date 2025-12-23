@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Check, AlertCircle, Info, Clock, Instagram, Plus, FileText, Sparkles, Loader2 } from "lucide-react";
+import { Send, Check, AlertCircle, Info, Clock, Instagram, Plus, FileText, Sparkles, Loader2, Image, Video, X, Eye } from "lucide-react";
 import { fetchCategories, submitStory, createCategory } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthModal } from "@/components/auth/AuthModal";
@@ -9,14 +9,17 @@ import { generateNickname } from "@/hooks/useAnonymousId";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { EmojiPicker } from "@/components/shared/EmojiPicker";
+import { StoryPreviewModal } from "@/components/shared/StoryPreviewModal";
 import type { Category } from "@/types/database";
 
 const SendenPage = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -24,12 +27,16 @@ const SendenPage = () => {
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [isImprovingText, setIsImprovingText] = useState(false);
   const [aiClarification, setAiClarification] = useState<string | null>(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [form, setForm] = useState({
     category: "",
     title: "",
     story: "",
     socialMediaSuitable: false,
     creditsName: "",
+    mediaUrl: "",
+    mediaType: "",
+    mediaDescription: "",
   });
 
   useEffect(() => {
@@ -108,7 +115,70 @@ const SendenPage = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    
+    if (!isImage && !isVideo) {
+      toast({ title: "Fehler", description: "Nur Bilder und Videos sind erlaubt.", variant: "destructive" });
+      return;
+    }
+
+    // Validate file size (max 50MB for videos, 10MB for images)
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast({ 
+        title: "Datei zu groß", 
+        description: isVideo ? "Videos dürfen max. 50MB sein." : "Bilder dürfen max. 10MB sein.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    setIsUploadingMedia(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `stories/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('story-media')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('story-media')
+        .getPublicUrl(filePath);
+
+      setForm({ 
+        ...form, 
+        mediaUrl: publicUrl, 
+        mediaType: isImage ? 'image' : 'video' 
+      });
+
+      toast({ title: "Erfolgreich hochgeladen", description: "Bitte beschreibe kurz, was auf dem Medium zu sehen ist." });
+    } catch (error) {
+      console.error('Error uploading media:', error);
+      toast({ title: "Upload fehlgeschlagen", description: "Bitte versuche es erneut.", variant: "destructive" });
+    } finally {
+      setIsUploadingMedia(false);
+    }
+  };
+
+  const handleRemoveMedia = () => {
+    setForm({ ...form, mediaUrl: "", mediaType: "", mediaDescription: "" });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleShowPreview = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!form.category || !form.story) {
@@ -120,8 +190,23 @@ const SendenPage = () => {
       return;
     }
 
-    // Show auth modal if not logged in - user can choose to login or continue anonymously
+    // Check if media has description
+    if (form.mediaUrl && !form.mediaDescription.trim()) {
+      toast({
+        title: "Beschreibung fehlt",
+        description: "Bitte beschreibe kurz, was auf dem Bild/Video zu sehen ist.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setShowPreviewModal(true);
+  };
+
+  const handleSubmit = async () => {
+    // Show auth modal if not logged in
     if (!user) {
+      setShowPreviewModal(false);
       setShowAuthModal(true);
       return;
     }
@@ -143,6 +228,10 @@ const SendenPage = () => {
         anonymous_author: asAnonymous ? authorName : (user ? undefined : authorName),
         social_media_suitable: form.socialMediaSuitable,
         credits_name: form.creditsName.trim() || undefined,
+        media_url: form.mediaUrl || undefined,
+        media_type: form.mediaType || undefined,
+        media_description: form.mediaDescription.trim() || undefined,
+        media_status: form.mediaUrl ? 'pending' : undefined,
       });
       
       // Send email notification to admin
@@ -155,17 +244,22 @@ const SendenPage = () => {
             authorName: authorName,
             socialMediaSuitable: form.socialMediaSuitable,
             creditsName: form.creditsName.trim() || undefined,
+            hasMedia: !!form.mediaUrl,
+            mediaType: form.mediaType,
+            mediaDescription: form.mediaDescription.trim() || undefined,
           }
         });
       } catch (emailError) {
         console.error('Email notification failed:', emailError);
-        // Don't fail the submission if email fails
       }
       
+      setShowPreviewModal(false);
       setIsSuccess(true);
       toast({
         title: "Story eingereicht! ✓",
-        description: "Deine Story wird geprüft und bald veröffentlicht.",
+        description: form.mediaUrl 
+          ? "Deine Story wird geprüft. Bilder/Videos werden separat überprüft."
+          : "Deine Story wird geprüft und bald veröffentlicht.",
       });
     } catch (error) {
       console.error('Error submitting story:', error);
@@ -184,11 +278,10 @@ const SendenPage = () => {
     if (action === 'anonymous') {
       submitStoryToDatabase(true);
     }
-    // If 'login', user will login and can then submit again
   };
 
   const handleReset = () => {
-    setForm({ category: "", title: "", story: "", socialMediaSuitable: false, creditsName: "" });
+    setForm({ category: "", title: "", story: "", socialMediaSuitable: false, creditsName: "", mediaUrl: "", mediaType: "", mediaDescription: "" });
     setIsSuccess(false);
   };
 
@@ -223,6 +316,18 @@ const SendenPage = () => {
                   </p>
                 </div>
               </div>
+              
+              {form.mediaUrl && (
+                <div className="flex items-start gap-3 mb-4">
+                  <Image className="w-5 h-5 text-amber-500 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-foreground">Medien-Überprüfung</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Bilder/Videos werden separat geprüft und können unabhängig vom Text abgelehnt werden.
+                    </p>
+                  </div>
+                </div>
+              )}
               
               {form.socialMediaSuitable && (
                 <div className="flex items-start gap-3">
@@ -273,7 +378,7 @@ const SendenPage = () => {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleShowPreview} className="space-y-6">
             {/* Category */}
             <div>
               <label className="block text-sm font-medium mb-2 text-foreground">
@@ -395,6 +500,93 @@ const SendenPage = () => {
               )}
             </div>
 
+            {/* Media Upload */}
+            <div>
+              <label className="block text-sm font-medium mb-2 text-foreground">
+                Bild oder Video <span className="text-muted-foreground">(optional)</span>
+              </label>
+              
+              {!form.mediaUrl ? (
+                <div className="relative">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={handleMediaUpload}
+                    disabled={isUploadingMedia}
+                    className="hidden"
+                    id="media-upload"
+                  />
+                  <label
+                    htmlFor="media-upload"
+                    className={`flex items-center justify-center gap-3 w-full px-4 py-6 bg-secondary border-2 border-dashed border-border rounded-xl cursor-pointer hover:bg-secondary/80 hover:border-primary/50 transition-all ${isUploadingMedia ? 'opacity-50 cursor-wait' : ''}`}
+                  >
+                    {isUploadingMedia ? (
+                      <>
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                        <span className="text-muted-foreground">Wird hochgeladen...</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex gap-2">
+                          <Image className="w-6 h-6 text-muted-foreground" />
+                          <Video className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                        <span className="text-muted-foreground">Bild oder Video hochladen</span>
+                      </>
+                    )}
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Bilder max. 10MB, Videos max. 50MB
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Media Preview */}
+                  <div className="relative rounded-xl overflow-hidden bg-secondary">
+                    {form.mediaType === 'image' ? (
+                      <img 
+                        src={form.mediaUrl} 
+                        alt="Vorschau" 
+                        className="w-full max-h-48 object-cover"
+                      />
+                    ) : (
+                      <video 
+                        src={form.mediaUrl} 
+                        controls 
+                        className="w-full max-h-48"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleRemoveMedia}
+                      className="absolute top-2 right-2 p-1.5 bg-black/70 rounded-full hover:bg-black/90 transition-colors"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                  
+                  {/* Media Description */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-foreground">
+                      Was ist darauf zu sehen? <span className="text-destructive">*</span>
+                    </label>
+                    <textarea
+                      value={form.mediaDescription}
+                      onChange={(e) => setForm({ ...form, mediaDescription: e.target.value })}
+                      placeholder="Beschreibe kurz, was auf dem Bild/Video zu sehen ist..."
+                      rows={2}
+                      className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
+                    />
+                    <p className="text-xs text-amber-400 mt-2 flex items-start gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                      Diese Beschreibung hilft Admins bei der Überprüfung. Medien können separat abgelehnt werden.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Social Media Checkbox */}
             <div className="bg-card border border-border rounded-xl p-4">
               <label className="flex items-start gap-3 cursor-pointer">
@@ -438,23 +630,14 @@ const SendenPage = () => {
               </p>
             </div>
 
-            {/* Submit */}
+            {/* Submit - now shows preview first */}
             <button
               type="submit"
               disabled={isSubmitting}
               className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                  Wird gesendet...
-                </>
-              ) : (
-                <>
-                  <Send className="w-5 h-5" />
-                  Story absenden
-                </>
-              )}
+              <Eye className="w-5 h-5" />
+              Vorschau anzeigen
             </button>
           </form>
 
@@ -467,6 +650,15 @@ const SendenPage = () => {
           </div>
         </div>
       </div>
+
+      <StoryPreviewModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        form={form}
+        categories={categories}
+      />
 
       <AuthModal
         isOpen={showAuthModal}

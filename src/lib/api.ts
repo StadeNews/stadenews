@@ -85,6 +85,10 @@ export const submitStory = async (story: {
   anonymous_author?: string;
   social_media_suitable?: boolean;
   credits_name?: string;
+  media_url?: string;
+  media_type?: string;
+  media_description?: string;
+  media_status?: string;
 }): Promise<void> => {
   const { error } = await supabase
     .from('stories')
