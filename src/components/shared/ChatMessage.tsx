@@ -1,4 +1,4 @@
-import { Flag } from "lucide-react";
+import { Flag, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ChatMessageData {
@@ -7,6 +7,7 @@ export interface ChatMessageData {
   message: string;
   timestamp: string;
   isOwn?: boolean;
+  isAdmin?: boolean;
 }
 
 interface ChatMessageProps {
@@ -21,8 +22,20 @@ export const ChatMessage = ({ message, onReport }: ChatMessageProps) => {
       message.isOwn && "flex-row-reverse"
     )}>
       {/* Avatar */}
-      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/50 to-accent/50 flex items-center justify-center flex-shrink-0 text-xs font-bold">
-        {message.nickname.charAt(0).toUpperCase()}
+      <div className="relative">
+        <div className={cn(
+          "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold",
+          message.isAdmin 
+            ? "bg-gradient-to-br from-amber-400 to-amber-600 text-amber-900" 
+            : "bg-gradient-to-br from-primary/50 to-accent/50"
+        )}>
+          {message.nickname.charAt(0).toUpperCase()}
+        </div>
+        {message.isAdmin && (
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-400 rounded-full flex items-center justify-center shadow-sm">
+            <Crown className="w-2.5 h-2.5 text-amber-900" />
+          </div>
+        )}
       </div>
       
       {/* Content */}
@@ -31,7 +44,11 @@ export const ChatMessage = ({ message, onReport }: ChatMessageProps) => {
         message.isOwn && "flex flex-col items-end"
       )}>
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-medium text-primary">
+          <span className={cn(
+            "text-xs font-medium flex items-center gap-1",
+            message.isAdmin ? "text-amber-500" : "text-primary"
+          )}>
+            {message.isAdmin && <Crown className="w-3 h-3" />}
             {message.nickname}
           </span>
           <span className="text-[10px] text-muted-foreground">
@@ -43,6 +60,8 @@ export const ChatMessage = ({ message, onReport }: ChatMessageProps) => {
           "relative px-4 py-2.5 rounded-2xl text-sm",
           message.isOwn 
             ? "bg-primary text-primary-foreground rounded-tr-sm" 
+            : message.isAdmin
+            ? "bg-gradient-to-br from-amber-500/20 to-amber-600/20 text-foreground rounded-tl-sm border border-amber-500/30"
             : "bg-secondary text-foreground rounded-tl-sm"
         )}>
           <p>{message.message}</p>
