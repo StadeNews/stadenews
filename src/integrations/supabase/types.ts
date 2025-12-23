@@ -692,6 +692,47 @@ export type Database = {
           },
         ]
       }
+      story_media: {
+        Row: {
+          created_at: string
+          id: string
+          media_description: string | null
+          media_status: string
+          media_type: string
+          media_url: string
+          rejection_reason: string | null
+          story_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          media_description?: string | null
+          media_status?: string
+          media_type: string
+          media_url: string
+          rejection_reason?: string | null
+          story_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          media_description?: string | null
+          media_status?: string
+          media_type?: string
+          media_url?: string
+          rejection_reason?: string | null
+          story_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_media_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       updates: {
         Row: {
           content: string
