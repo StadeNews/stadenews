@@ -7,6 +7,7 @@ import { Shield, Zap, Users, ChevronRight, Instagram, Mail, Facebook, Phone, Hea
 import { fetchPublishedStories, fetchCategories } from "@/lib/api";
 import { Story, Category } from "@/types/database";
 import stadeNewsLogo from "@/assets/stade-news-logo.png";
+import stadeBanner from "@/assets/stade-banner.png";
 
 
 const HomePage = () => {
@@ -63,8 +64,20 @@ const HomePage = () => {
         </div>
       </section>
 
+      {/* City Banner */}
+      <section className="w-full">
+        <div className="relative w-full h-48 md:h-64 lg:h-80 overflow-hidden">
+          <img 
+            src={stadeBanner} 
+            alt="Stade Stadtansicht" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+        </div>
+      </section>
+
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-primary/5 to-background">
+      <section className="bg-gradient-to-b from-transparent to-background -mt-16 relative z-10">
         <div className="container mx-auto px-4 py-16 md:py-24">
           <div className="text-center max-w-3xl mx-auto">
             {/* Logo */}
