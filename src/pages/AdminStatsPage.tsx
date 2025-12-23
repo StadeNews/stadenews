@@ -53,9 +53,25 @@ const AdminStatsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && (!user || !isAdmin)) {
+    // Wait for auth to finish loading before checking permissions
+    if (authLoading) {
+      return;
+    }
+
+    if (!user) {
       navigate('/');
       return;
+    }
+
+    // Only redirect if we've confirmed user is not admin
+    if (user && !isAdmin) {
+      // Give a small delay to allow isAdmin to update
+      const timeout = setTimeout(() => {
+        if (!isAdmin) {
+          navigate('/');
+        }
+      }, 500);
+      return () => clearTimeout(timeout);
     }
 
     if (user && isAdmin) {
