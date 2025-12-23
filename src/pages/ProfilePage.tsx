@@ -48,7 +48,8 @@ const ProfilePage = () => {
   const [stories, setStories] = useState<Story[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"comments" | "stories">("comments");
-  const [badgeLevel, setBadgeLevel] = useState<number>(0);
+  const [userBadges, setUserBadges] = useState<{ badge_type: string; badge_level: number }[]>([]);
+  const [totalLikesReceived, setTotalLikesReceived] = useState(0);
   const { isAdmin } = useAuth();
   
   // Editing states
@@ -154,17 +155,19 @@ const ProfilePage = () => {
       setComments(commentsData);
       setStories(storiesData);
       
-      // Fetch user badge
-      const { data: badgeData } = await supabase
+      // Fetch user badges (all types)
+      const { data: badgesData } = await supabase
         .from('user_badges')
-        .select('badge_level')
-        .eq('user_id', user.id)
-        .eq('badge_type', 'commenter')
-        .maybeSingle();
+        .select('badge_type, badge_level')
+        .eq('user_id', user.id);
       
-      if (badgeData) {
-        setBadgeLevel(badgeData.badge_level);
+      if (badgesData) {
+        setUserBadges(badgesData);
       }
+      
+      // Calculate total likes received on stories
+      const totalLikes = storiesData.reduce((sum, story) => sum + (story.likes_count || 0), 0);
+      setTotalLikesReceived(totalLikes);
     } catch (error) {
       console.error("Error loading profile:", error);
       toast({
@@ -601,9 +604,9 @@ const ProfilePage = () => {
                     {profile?.username || user.email?.split('@')[0]}
                   </h1>
                   {isAdmin && <AdminCrown size="md" />}
-                  {badgeLevel > 0 && (
-                    <UserBadge type="commenter" level={badgeLevel} size="md" showLabel />
-                  )}
+                  {userBadges.map(badge => (
+                    <UserBadge key={badge.badge_type} type={badge.badge_type as 'commenter'} level={badge.badge_level} size="sm" />
+                  ))}
                   <button
                     onClick={() => setIsEditingUsername(true)}
                     className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
@@ -738,7 +741,12 @@ const ProfilePage = () => {
 
           {/* Badge Progress Section */}
           <div className="mb-4 bg-secondary/30 rounded-xl p-4 border border-border">
-            <BadgeProgress currentComments={comments.length} currentBadgeLevel={badgeLevel} />
+            <BadgeProgress 
+              currentComments={comments.length} 
+              currentStories={stories.filter(s => s.status === 'published').length}
+              currentLikes={totalLikesReceived}
+              badges={userBadges}
+            />
           </div>
 
           {/* Password Change Section */}

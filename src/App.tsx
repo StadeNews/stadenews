@@ -25,6 +25,7 @@ import UeberUnsPage from "./pages/UeberUnsPage";
 import UpdatesPage from "./pages/UpdatesPage";
 import AdminPage from "./pages/AdminPage";
 import AuthPage from "./pages/AuthPage";
+import LeaderboardPage from "./pages/LeaderboardPage";
 import ImpressumPage from "./pages/ImpressumPage";
 import DatenschutzPage from "./pages/DatenschutzPage";
 import AGBPage from "./pages/AGBPage";
@@ -81,6 +82,7 @@ const AppRoutes = () => {
         <Route path="/updates" element={<UpdatesPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/impressum" element={<ImpressumPage />} />
         <Route path="/datenschutz" element={<DatenschutzPage />} />
         <Route path="/agb" element={<AGBPage />} />
