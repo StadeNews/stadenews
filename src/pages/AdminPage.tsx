@@ -28,7 +28,8 @@ import {
   ShieldAlert,
   ShieldCheck,
   Crown,
-  UserCheck
+  UserCheck,
+  UserX
 } from "lucide-react";
 import { 
   fetchAllStories, 
@@ -351,6 +352,26 @@ const AdminPage = () => {
     } catch (error) {
       console.error('Error unbanning user:', error);
       toast({ title: "Fehler", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteAccount = async (userId: string, username: string | null) => {
+    if (!confirm(`Account "${username || 'Unbekannt'}" wirklich dauerhaft löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) return;
+    
+    try {
+      const { data, error } = await supabase.rpc('admin_delete_user', { _user_id: userId });
+      
+      if (error) throw error;
+      
+      setAllUsers(allUsers.filter(u => u.id !== userId));
+      toast({ title: "Account gelöscht" });
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast({ 
+        title: "Fehler beim Löschen", 
+        description: "Account konnte nicht gelöscht werden.",
+        variant: "destructive" 
+      });
     }
   };
 
@@ -1072,10 +1093,17 @@ const AdminPage = () => {
                         </div>
                         <button
                           onClick={() => setBanningId({ type: 'user', id: u.id })}
-                          className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                          className="p-2 text-muted-foreground hover:text-yellow-600 hover:bg-yellow-500/10 rounded-lg transition-colors"
                           title="Nutzer sperren"
                         >
                           <Ban className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAccount(u.id, u.username)}
+                          className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                          title="Account löschen"
+                        >
+                          <UserX className="w-4 h-4" />
                         </button>
                       </div>
                     ))}
