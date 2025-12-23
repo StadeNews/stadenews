@@ -18,7 +18,11 @@ import {
   Pause,
   Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  Mail,
+  Shield,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import { 
   fetchUserProfile, 
@@ -28,11 +32,15 @@ import {
 } from "@/lib/api";
 import type { Profile, Comment, Story } from "@/types/database";
 
+interface ExtendedProfile extends Profile {
+  is_private?: boolean;
+}
+
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, signOut } = useAuth();
   const { toast } = useToast();
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<ExtendedProfile | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,6 +70,18 @@ const ProfilePage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   
+  // Email change states
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailLoading, setEmailLoading] = useState(false);
+  
+  // Privacy & Delete states
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [privacyLoading, setPrivacyLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,9 +100,16 @@ const ProfilePage = () => {
     if (!user) return;
 
     try {
-      let profileData = await fetchUserProfile(user.id);
+      // Fetch profile with is_private field
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      if (profileError) throw profileError;
 
-      // If the profile row doesn't exist yet (older users / missing trigger), create it once.
+      // If the profile row doesn't exist yet, create it
       if (!profileData) {
         const fallbackUsername =
           (user.user_metadata as any)?.username ||
@@ -97,7 +124,21 @@ const ProfilePage = () => {
 
         if (insertError) throw insertError;
 
-        profileData = await fetchUserProfile(user.id);
+        const { data: newProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        setProfile(newProfile as ExtendedProfile);
+        setNewUsername(newProfile?.username || "");
+        setNewBio(newProfile?.bio || "");
+        setIsPrivate(newProfile?.is_private || false);
+      } else {
+        setProfile(profileData as ExtendedProfile);
+        setNewUsername(profileData?.username || "");
+        setNewBio(profileData?.bio || "");
+        setIsPrivate((profileData as any)?.is_private || false);
       }
 
       const [commentsData, storiesData] = await Promise.all([
@@ -105,11 +146,8 @@ const ProfilePage = () => {
         fetchUserStories(user.id),
       ]);
 
-      setProfile(profileData);
       setComments(commentsData);
       setStories(storiesData);
-      setNewUsername(profileData?.username || "");
-      setNewBio(profileData?.bio || "");
     } catch (error) {
       console.error("Error loading profile:", error);
       toast({
@@ -333,6 +371,123 @@ const ProfilePage = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const handleChangeEmail = async () => {
+    if (!newEmail.trim()) {
+      toast({
+        title: "Fehler",
+        description: "Bitte gib eine E-Mail-Adresse ein.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      toast({
+        title: "Fehler",
+        description: "Bitte gib eine gültige E-Mail-Adresse ein.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setEmailLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        email: newEmail
+      });
+
+      if (error) throw error;
+
+      toast({ 
+        title: "Bestätigungs-E-Mail gesendet!", 
+        description: "Bitte bestätige die Änderung in deinem Postfach." 
+      });
+      setIsChangingEmail(false);
+      setNewEmail("");
+    } catch (error: any) {
+      console.error('Error changing email:', error);
+      toast({
+        title: "Fehler",
+        description: error.message || "E-Mail konnte nicht geändert werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const handleTogglePrivacy = async () => {
+    setPrivacyLoading(true);
+    try {
+      const newPrivacyValue = !isPrivate;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_private: newPrivacyValue })
+        .eq('id', user!.id);
+
+      if (error) throw error;
+
+      setIsPrivate(newPrivacyValue);
+      toast({ 
+        title: newPrivacyValue ? "Profil auf privat gestellt" : "Profil öffentlich",
+        description: newPrivacyValue 
+          ? "Nur du und Admins können dein Profil sehen." 
+          : "Jeder kann dein Profil sehen."
+      });
+    } catch (error: any) {
+      console.error('Error updating privacy:', error);
+      toast({
+        title: "Fehler",
+        description: "Datenschutz-Einstellung konnte nicht geändert werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setPrivacyLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "LÖSCHEN") {
+      toast({
+        title: "Fehler",
+        description: "Bitte gib 'LÖSCHEN' ein, um deinen Account zu löschen.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      // Delete profile (this will cascade due to foreign key)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', user!.id);
+
+      if (profileError) throw profileError;
+
+      // Sign out
+      await signOut();
+      
+      toast({ 
+        title: "Account gelöscht",
+        description: "Dein Account wurde erfolgreich gelöscht."
+      });
+      navigate('/');
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      toast({
+        title: "Fehler",
+        description: error.message || "Account konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -646,6 +801,163 @@ const ProfilePage = () => {
               <p className="text-sm text-muted-foreground bg-secondary/50 rounded-lg p-3">
                 ••••••••
               </p>
+            )}
+          </div>
+
+          {/* Email Change Section */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                E-Mail
+              </label>
+              {!isChangingEmail && (
+                <button
+                  onClick={() => setIsChangingEmail(true)}
+                  className="text-xs text-primary hover:underline"
+                >
+                  E-Mail ändern
+                </button>
+              )}
+            </div>
+            {isChangingEmail ? (
+              <div className="space-y-3 bg-secondary/50 rounded-lg p-4">
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="Neue E-Mail-Adresse"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Du erhältst eine Bestätigungs-E-Mail an die neue Adresse.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setIsChangingEmail(false);
+                      setNewEmail("");
+                    }}
+                    className="flex-1 px-3 py-2 text-sm text-muted-foreground hover:text-foreground bg-background border border-border rounded-lg"
+                    disabled={emailLoading}
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    onClick={handleChangeEmail}
+                    disabled={emailLoading}
+                    className="flex-1 px-3 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 flex items-center justify-center gap-2"
+                  >
+                    {emailLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Senden...
+                      </>
+                    ) : (
+                      'Bestätigung senden'
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground bg-secondary/50 rounded-lg p-3">
+                {user?.email}
+              </p>
+            )}
+          </div>
+
+          {/* Privacy Setting */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Datenschutz
+              </label>
+            </div>
+            <div className="bg-secondary/50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Privates Profil</p>
+                  <p className="text-xs text-muted-foreground">
+                    Wenn aktiviert, können nur du und Admins dein Profil sehen.
+                  </p>
+                </div>
+                <button
+                  onClick={handleTogglePrivacy}
+                  disabled={privacyLoading}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    isPrivate ? 'bg-primary' : 'bg-border'
+                  }`}
+                >
+                  <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                    isPrivate ? 'translate-x-6' : 'translate-x-0.5'
+                  }`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Delete Account Section */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-destructive" />
+                Account löschen
+              </label>
+              {!showDeleteConfirm && (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="text-xs text-destructive hover:underline"
+                >
+                  Account löschen
+                </button>
+              )}
+            </div>
+            {showDeleteConfirm && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Account wirklich löschen?</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Diese Aktion kann nicht rückgängig gemacht werden. Dein Profil und alle zugehörigen Daten werden gelöscht.
+                    </p>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Gib 'LÖSCHEN' ein zur Bestätigung"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-destructive/50 mb-3"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setDeleteConfirmText("");
+                    }}
+                    className="flex-1 px-3 py-2 text-sm bg-secondary text-foreground rounded-lg hover:bg-secondary/80"
+                    disabled={deleteLoading}
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={deleteLoading || deleteConfirmText !== "LÖSCHEN"}
+                    className="flex-1 px-3 py-2 text-sm bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {deleteLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Löschen...
+                      </>
+                    ) : (
+                      'Endgültig löschen'
+                    )}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

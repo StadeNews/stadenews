@@ -26,7 +26,9 @@ import {
   Image,
   Video,
   ShieldAlert,
-  ShieldCheck
+  ShieldCheck,
+  Crown,
+  UserCheck
 } from "lucide-react";
 import { 
   fetchAllStories, 
@@ -58,6 +60,18 @@ interface ExtendedChatGroup extends ChatGroup {
   closed_reason?: string | null;
 }
 
+interface AdminUser {
+  id: string;
+  username: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  is_private: boolean;
+  is_online: boolean;
+  created_at: string;
+  updated_at: string;
+  role: string;
+}
+
 const AdminPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -69,7 +83,8 @@ const AdminPage = () => {
   const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
   const [chatGroups, setChatGroups] = useState<ExtendedChatGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"stories" | "eilmeldung" | "reports" | "users" | "groups">("stories");
+  const [activeTab, setActiveTab] = useState<"stories" | "eilmeldung" | "reports" | "users" | "groups" | "accounts">("stories");
+  const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
   const [eilmeldung, setEilmeldung] = useState({ title: "", content: "", category_id: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingStory, setEditingStory] = useState<Story | null>(null);
@@ -134,6 +149,12 @@ const AdminPage = () => {
         .select('*')
         .order('created_at', { ascending: false });
       setBannedUsers((bannedData || []) as BannedUser[]);
+
+      // Fetch all users via RPC function for admin
+      const { data: usersData, error: usersError } = await supabase.rpc('get_admin_users');
+      if (!usersError && usersData) {
+        setAllUsers(usersData as AdminUser[]);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -490,12 +511,13 @@ const AdminPage = () => {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-6 overflow-x-auto">
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
             {[
               { id: "stories", label: "Storys", icon: FileText, badge: pendingCount },
               { id: "eilmeldung", label: "Eilmeldung", icon: AlertTriangle },
               { id: "reports", label: "Meldungen", icon: Flag, badge: pendingReports },
-              { id: "users", label: "Nutzer", icon: Users, badge: onlineUsers.length },
+              { id: "users", label: "Online", icon: Users, badge: onlineUsers.length },
+              { id: "accounts", label: "Accounts", icon: UserCheck, badge: allUsers.length },
               { id: "groups", label: "Gruppen", icon: MessageCircle, badge: chatGroups.length },
             ].map((tab) => (
               <button
@@ -509,7 +531,7 @@ const AdminPage = () => {
               >
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
-                {tab.badge && tab.badge > 0 && (
+                {tab.badge !== undefined && tab.badge > 0 && (
                   <span className="ml-1 px-2 py-0.5 text-xs bg-yellow-500/20 text-yellow-600 rounded-full">
                     {tab.badge}
                   </span>
@@ -979,6 +1001,77 @@ const AdminPage = () => {
                             type: presence.user_id ? 'user' : 'anonymous', 
                             id: presence.user_id || presence.anonymous_id || '' 
                           })}
+                          className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                          title="Nutzer sperren"
+                        >
+                          <Ban className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Accounts Tab */}
+          {activeTab === "accounts" && (
+            <div className="space-y-4">
+              <div className="bg-card border border-border rounded-xl p-4">
+                <h3 className="font-semibold mb-4 flex items-center gap-2 text-foreground">
+                  <UserCheck className="w-5 h-5 text-primary" />
+                  Alle registrierten Accounts ({allUsers.length})
+                </h3>
+                {allUsers.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">Keine registrierten Nutzer.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {allUsers.map((u) => (
+                      <div key={u.id} className="flex items-center gap-3 p-3 bg-secondary rounded-lg">
+                        <div className="relative">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden ${
+                            u.role === 'admin' 
+                              ? 'bg-gradient-to-br from-amber-400 to-amber-600' 
+                              : 'bg-primary/20'
+                          }`}>
+                            {u.avatar_url ? (
+                              <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <Users className={`w-5 h-5 ${u.role === 'admin' ? 'text-amber-900' : 'text-primary'}`} />
+                            )}
+                          </div>
+                          {u.role === 'admin' && (
+                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center shadow-sm">
+                              <Crown className="w-3 h-3 text-amber-900" />
+                            </div>
+                          )}
+                          {u.is_online && (
+                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-secondary" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {u.username || 'Unbekannt'}
+                            </p>
+                            {u.role === 'admin' && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 flex items-center gap-1">
+                                <Crown className="w-3 h-3" /> Admin
+                              </span>
+                            )}
+                            {u.is_private && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                                Privat
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Seit {new Date(u.created_at).toLocaleDateString('de-DE')}
+                            {u.is_online && <span className="text-green-500 ml-2">● Online</span>}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setBanningId({ type: 'user', id: u.id })}
                           className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                           title="Nutzer sperren"
                         >

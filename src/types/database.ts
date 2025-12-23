@@ -80,6 +80,7 @@ export interface Profile {
   audio_url: string | null;
   is_online: boolean | null;
   likes_count: number | null;
+  is_private?: boolean;
   created_at: string;
   updated_at: string;
 }

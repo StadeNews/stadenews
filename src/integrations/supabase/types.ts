@@ -380,6 +380,7 @@ export type Database = {
           created_at: string
           id: string
           is_online: boolean | null
+          is_private: boolean | null
           likes_count: number | null
           updated_at: string
           username: string | null
@@ -391,6 +392,7 @@ export type Database = {
           created_at?: string
           id: string
           is_online?: boolean | null
+          is_private?: boolean | null
           likes_count?: number | null
           updated_at?: string
           username?: string | null
@@ -402,6 +404,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_online?: boolean | null
+          is_private?: boolean | null
           likes_count?: number | null
           updated_at?: string
           username?: string | null
@@ -866,6 +869,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_admin_users: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          bio: string
+          created_at: string
+          id: string
+          is_online: boolean
+          is_private: boolean
+          role: string
+          updated_at: string
+          username: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
